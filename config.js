@@ -4,11 +4,11 @@
 
 const APP_CONFIG = {
     // Get your Gemini API key from: https://makersuite.google.com/app/apikey
-    GEMINI_API_KEY: 'YOUR_GEMINI_API_KEY_HERE',
+    GEMINI_API_KEY: 'AIzaSyDQO8Majb1NLtqQ-MhS2l9ivCu7yEjTpoc',
     
     // Get these from your Supabase project settings
-    SUPABASE_URL: 'https://YOUR_PROJECT.supabase.co',
-    SUPABASE_ANON_KEY: 'YOUR_SUPABASE_ANON_KEY_HERE',
+    SUPABASE_URL: 'https://nvnopwfkbkslvrvvvji.supabase.co' ,
+    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im52bm9wd2ZrYmtzbHZydnZ2amlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk3NDUwNjUsImV4cCI6MjA1NTMyMTA2NX0.mdphOoFUFujVx2Z7YgbAa9HggJHFVuthjRy9DI9zZZ0',
     
     // Optional: Firebase configuration
     FIREBASE_CONFIG: {
