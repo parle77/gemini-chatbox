@@ -5,7 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Assistant Chatbot</title>
     <style>
-        /* Modern Chat Interface Styling */
+        /* Modern Chat Interface with Custom Brand Colors */
+        :root {
+            --primary-color: #226137;
+            --secondary-color: #FCB1A8;
+            --third-color: #F26D14;
+            --fourth-color: #F6D635;
+            --background-color: #FFFFFF;
+            --text-color: #333333;
+            --light-gray: #f7f8fa;
+            --border-gray: #e5e7eb;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,9 +24,8 @@
         }
 
         body {
-            
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary-color);
             height: 100vh;
             display: flex;
             justify-content: center;
@@ -27,21 +37,32 @@
             max-width: 480px;
             height: 90vh;
             max-height: 700px;
-            background: white;
+            background: var(--background-color);
             border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 20px 60px rgba(34, 97, 55, 0.3);
             display: flex;
             flex-direction: column;
             overflow: hidden;
         }
 
         .chat-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary-color);
             color: white;
             padding: 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            position: relative;
+        }
+
+        .chat-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--fourth-color);
         }
 
         .bot-info {
@@ -55,6 +76,7 @@
             height: 40px;
             border-radius: 50%;
             background: rgba(255, 255, 255, 0.2);
+            border: 2px solid var(--fourth-color);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -69,22 +91,31 @@
         .bot-status {
             font-size: 12px;
             opacity: 0.9;
+            color: var(--fourth-color);
         }
 
         .settings-btn {
-            background: none;
-            border: none;
+            display: none; /* Hidden from users */
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
             color: white;
             cursor: pointer;
             font-size: 20px;
-            padding: 5px;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .settings-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(45deg);
         }
 
         .chat-messages {
             flex: 1;
             overflow-y: auto;
             padding: 20px;
-            background: #f7f8fa;
+            background: var(--light-gray);
         }
 
         .message {
@@ -113,19 +144,21 @@
             padding: 12px 16px;
             border-radius: 18px;
             word-wrap: break-word;
+            position: relative;
         }
 
         .message.user .message-content {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary-color);
             color: white;
             border-bottom-right-radius: 4px;
+            box-shadow: 0 2px 8px rgba(34, 97, 55, 0.2);
         }
 
         .message.bot .message-content {
-            background: white;
-            color: #333;
+            background: var(--third-color);
+            color: white;
             border-bottom-left-radius: 4px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
 
         .message-time {
@@ -140,8 +173,10 @@
             background: white;
             border-radius: 18px;
             border-bottom-left-radius: 4px;
+            border: 1px solid var(--secondary-color);
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
             width: fit-content;
+            margin: 0 20px 10px 20px;
         }
 
         .typing-indicator.active {
@@ -153,17 +188,19 @@
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background: #667eea;
+            background: var(--third-color);
             margin: 0 2px;
             animation: typing 1.4s infinite;
         }
 
         .typing-dot:nth-child(2) {
             animation-delay: 0.2s;
+            background: var(--primary-color);
         }
 
         .typing-dot:nth-child(3) {
             animation-delay: 0.4s;
+            background: var(--fourth-color);
         }
 
         @keyframes typing {
@@ -178,7 +215,7 @@
         .chat-input-container {
             padding: 20px;
             background: white;
-            border-top: 1px solid #e5e7eb;
+            border-top: 2px solid var(--secondary-color);
         }
 
         .input-wrapper {
@@ -189,33 +226,42 @@
         .chat-input {
             flex: 1;
             padding: 12px 16px;
-            border: 2px solid #e5e7eb;
+            border: 2px solid var(--border-gray);
             border-radius: 25px;
             font-size: 15px;
             outline: none;
-            transition: border-color 0.3s;
+            transition: all 0.3s;
+            color: var(--text-color);
         }
 
         .chat-input:focus {
-            border-color: #667eea;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(34, 97, 55, 0.1);
         }
 
         .send-btn {
             width: 45px;
             height: 45px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary-color);
             border: none;
             color: white;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: transform 0.2s;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(34, 97, 55, 0.3);
         }
 
         .send-btn:hover:not(:disabled) {
-            transform: scale(1.05);
+            transform: scale(1.1);
+            background: var(--third-color);
+            box-shadow: 0 4px 12px rgba(34, 97, 55, 0.4);
+        }
+
+        .send-btn:active:not(:disabled) {
+            transform: scale(0.95);
         }
 
         .send-btn:disabled {
@@ -231,6 +277,7 @@
             margin: 10px 20px;
             font-size: 14px;
             display: none;
+            border-left: 4px solid var(--third-color);
         }
 
         .error-message.active {
@@ -245,10 +292,11 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(34, 97, 55, 0.7);
             z-index: 1000;
             justify-content: center;
             align-items: center;
+            backdrop-filter: blur(5px);
         }
 
         .settings-modal.active {
@@ -261,12 +309,15 @@
             padding: 25px;
             width: 90%;
             max-width: 400px;
+            box-shadow: 0 10px 40px rgba(34, 97, 55, 0.3);
+            border-top: 4px solid var(--primary-color);
         }
 
         .settings-title {
             font-size: 20px;
             font-weight: 600;
             margin-bottom: 20px;
+            color: var(--primary-color);
         }
 
         .settings-group {
@@ -277,15 +328,30 @@
             display: block;
             margin-bottom: 5px;
             font-size: 14px;
-            color: #666;
+            color: var(--text-color);
+            font-weight: 500;
         }
 
         .settings-input {
             width: 100%;
             padding: 10px;
-            border: 1px solid #ddd;
+            border: 2px solid var(--border-gray);
             border-radius: 8px;
             font-size: 14px;
+            transition: all 0.3s;
+            color: var(--text-color);
+        }
+
+        .settings-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(34, 97, 55, 0.1);
+        }
+
+        textarea.settings-input {
+            resize: vertical;
+            min-height: 80px;
+            font-family: inherit;
         }
 
         .settings-buttons {
@@ -296,21 +362,76 @@
 
         .settings-btn {
             flex: 1;
-            padding: 10px;
+            padding: 12px;
             border-radius: 8px;
             border: none;
             font-size: 14px;
             cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
         }
 
         .settings-btn.save {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary-color);
             color: white;
         }
 
+        .settings-btn.save:hover {
+            transform: translateY(-2px);
+            background: var(--third-color);
+            box-shadow: 0 4px 12px rgba(34, 97, 55, 0.3);
+        }
+
         .settings-btn.cancel {
-            background: #f3f4f6;
-            color: #666;
+            background: var(--secondary-color);
+            color: var(--text-color);
+        }
+
+        .settings-btn.cancel:hover {
+            background: #f5a099;
+        }
+
+        /* Scrollbar Styling */
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: var(--light-gray);
+            border-radius: 10px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 10px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-color);
+        }
+
+        /* Welcome message special styling */
+        .message.bot:first-child .message-content {
+            background: var(--third-color);
+            border: none;
+            color: white;
+        }
+
+        /* Loading animation for better UX */
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .loading {
+            animation: pulse 1.5s infinite;
         }
     </style>
 </head>
@@ -322,10 +443,10 @@
                 <div class="bot-avatar">🤖</div>
                 <div>
                     <div class="bot-name">AI Assistant</div>
-                    <div class="bot-status">Online</div>
+                    <div class="bot-status">● Online</div>
                 </div>
             </div>
-            <button class="settings-btn" onclick="openSettings()">⚙️</button>
+            <button class="settings-btn" onclick="openSettings()" style="display: none;">⚙️</button>
         </div>
 
         <div class="chat-messages" id="chatMessages">
@@ -366,7 +487,7 @@
     <!-- Settings Modal -->
     <div class="settings-modal" id="settingsModal">
         <div class="settings-content">
-            <h2 class="settings-title">Settings</h2>
+            <h2 class="settings-title">⚙️ Settings</h2>
             
             <div class="settings-group">
                 <label class="settings-label">User ID</label>
@@ -386,24 +507,14 @@
     </div>
 
     <script>
-        // Configuration
-        const CONFIG = APP_CONFIG; // Uses the external config file
-            
-            // Firebase config (optional - for primary storage)
-            FIREBASE_CONFIG: {
-                apiKey: "YOUR_FIREBASE_API_KEY",
-                authDomain: "YOUR_AUTH_DOMAIN",
-                projectId: "YOUR_PROJECT_ID",
-                storageBucket: "YOUR_STORAGE_BUCKET",
-                messagingSenderId: "YOUR_SENDER_ID",
-                appId: "YOUR_APP_ID"
-            }
+        // Configuration - Uses external config file
+        const CONFIG = 
         };
 
         // Initialize variables
         let userId = localStorage.getItem('userId') || generateUserId();
         let sessionId = generateSessionId();
-        let systemPrompt = localStorage.getItem('systemPrompt') || 'You are a helpful AI assistant. Be concise and friendly in your responses.';
+        let systemPrompt = localStorage.getItem('systemPrompt') || CONFIG.DEFAULT_SYSTEM_PROMPT;
         let chatHistory = [];
 
         // Generate unique IDs
@@ -455,6 +566,9 @@
             const typingIndicator = document.getElementById('typingIndicator');
             if (show) {
                 typingIndicator.classList.add('active');
+                // Scroll to show typing indicator
+                const chatMessages = document.getElementById('chatMessages');
+                chatMessages.scrollTop = chatMessages.scrollHeight;
             } else {
                 typingIndicator.classList.remove('active');
             }
@@ -535,7 +649,7 @@
         // Call Gemini API
         async function callGeminiAPI(userMessage) {
             if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY') {
-                return "Please configure your Gemini API key in the settings.";
+                return "Please configure your Gemini API key in the config.js file.";
             }
 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
@@ -688,6 +802,12 @@
 
         // Initialize on load
         window.addEventListener('load', async () => {
+            // Set system prompt from config if available
+            if (CONFIG.DEFAULT_SYSTEM_PROMPT) {
+                systemPrompt = CONFIG.DEFAULT_SYSTEM_PROMPT;
+                localStorage.setItem('systemPrompt', systemPrompt);
+            }
+            
             await loadChatHistory();
             
             // Check for Adalo parameters
@@ -696,6 +816,12 @@
             if (adaloUserId) {
                 userId = adaloUserId;
                 localStorage.setItem('userId', userId);
+            }
+            
+            // Admin mode: Show settings if admin=true in URL
+            const isAdmin = urlParams.get('admin');
+            if (isAdmin === 'true') {
+                document.querySelector('.settings-btn').style.display = 'block';
             }
         });
 
