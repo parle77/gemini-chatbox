@@ -21,10 +21,10 @@ const APP_CONFIG = {
     },
     
     // Default system prompt for training the bot
-    DEFAULT_SYSTEM_PROMPT: `You are a helpful AI assistant called Elle. You are here to help users on the topic of Gut health on the app Gutty. Be concise and friendly in your responses.`,
+    DEFAULT_SYSTEM_PROMPT: `You are a helpful AI assistant Your name is Elle. You are here to help users on the topic of Gut health on the app Gutty. Be concise and friendly in your responses.`,
     
     // Bot customization
-    BOT_NAME: 'AI Assistant',
+    BOT_NAME: 'Elle',
     BOT_AVATAR: '🤖',
     
     // Theme colors (in hex)
