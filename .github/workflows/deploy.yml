@@ -10,21 +10,12 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
       
-    - name: Create config with secrets
+    - name: Inject secrets into HTML
       run: |
-        cat > config.js << 'EOF'
-        const APP_CONFIG = {
-            GEMINI_API_KEY: '${{ secrets.GEMINI_API_KEY }}',
-            SUPABASE_URL: '${{ secrets.SUPABASE_URL }}',
-            SUPABASE_ANON_KEY: '${{ secrets.SUPABASE_ANON_KEY }}',
-            DEFAULT_SYSTEM_PROMPT: 'You are Elle, a specialized gut health assistant for the Gutty app. You help users with digestive health questions, gut microbiome information, probiotic and prebiotic guidance, IBS, IBD, and digestive disorder support, and nutrition for gut health. Always be friendly, supportive, and remind users to consult healthcare professionals for serious issues.',
-            BOT_NAME: 'Elle',
-            BOT_AVATAR: '🤖'
-        };
-        
-        // Make it available globally
-        window.APP_CONFIG = APP_CONFIG;
-        EOF
+        # Replace placeholders in index.html with actual secrets
+        sed -i "s/PLACEHOLDER_GEMINI_KEY/${{ secrets.GEMINI_API_KEY }}/g" index.html
+        sed -i "s/PLACEHOLDER_SUPABASE_URL/${{ secrets.SUPABASE_URL }}/g" index.html
+        sed -i "s/PLACEHOLDER_SUPABASE_KEY/${{ secrets.SUPABASE_ANON_KEY }}/g" index.html
         
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
