@@ -593,9 +593,10 @@
 
         // Call Gemini API
         async function callGeminiAPI(userMessage) {
-            if (CONFIG.GEMINI_API_KEY === 'PLACEHOLDER_GEMINI_KEY' || !CONFIG.GEMINI_API_KEY) {
-                return "Configuration error: API key not configured.";
-            }
+            if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY === 'PLACEHOLDER_GEMINI_KEY' || CONFIG.GEMINI_API_KEY.length < 10) {
+    console.log('API Key debug:', CONFIG.GEMINI_API_KEY);
+    return "Configuration error: API key not configured.";
+}
 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
             
