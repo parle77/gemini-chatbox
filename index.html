@@ -95,7 +95,7 @@
         }
 
         .settings-btn {
-            display: none; /* Hidden from users */
+            display: none;
             background: rgba(255, 255, 255, 0.2);
             border: 1px solid rgba(255, 255, 255, 0.3);
             color: white;
@@ -436,7 +436,6 @@
     </style>
 </head>
 <body>
-    <script src="config.js"></script>
     <div class="chat-container">
         <div class="chat-header">
             <div class="bot-info">
@@ -446,7 +445,7 @@
                     <div class="bot-status">● Online</div>
                 </div>
             </div>
-            <button class="settings-btn" onclick="openSettings()" style="display: none;">⚙️</button>
+            <button class="settings-btn" id="settingsButton" style="display: none;">⚙️</button>
         </div>
 
         <div class="chat-messages" id="chatMessages">
@@ -473,9 +472,8 @@
                     class="chat-input" 
                     id="chatInput" 
                     placeholder="Type your message..."
-                    onkeypress="handleKeyPress(event)"
                 >
-                <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                <button class="send-btn" id="sendBtn">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
                     </svg>
@@ -500,16 +498,29 @@
             </div>
             
             <div class="settings-buttons">
-                <button class="settings-btn cancel" onclick="closeSettings()">Cancel</button>
-                <button class="settings-btn save" onclick="saveSettings()">Save</button>
+                <button class="settings-btn cancel" id="cancelSettings">Cancel</button>
+                <button class="settings-btn save" id="saveSettingsBtn">Save</button>
             </div>
         </div>
     </div>
 
     <script>
-        // Configuration - Uses external config file
-        const CONFIG = window.APP_CONFIG;
-        
+        // Configuration - fallback if config.js is not loaded
+        let CONFIG = {
+            GEMINI_API_KEY: 'AIzaSyDQO8Majb1NLtqQ-MhS2l9ivCu7yEjTpoc',
+            SUPABASE_URL: 'https://nvnopwfkbkslvrvvvji.supabase.co',
+            SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im52bm9wd2ZrYmtzbHZydnZ2amlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk3NDUwNjUsImV4cCI6MjA1NTMyMTA2NX0.mdphOoFUFujVx2Z7YgbAa9HggJHFVuthjRy9DI9zZZ0',
+            DEFAULT_SYSTEM_PROMPT: 'You are a helpful AI assistant. Your name is Elle. You are here to help users on the topic of Gut health on the app Gutty. Be concise and friendly in your responses.',
+            BOT_NAME: 'Elle',
+            BOT_AVATAR: '🤖'
+        };
+
+        // Try to load external config
+        function loadConfig() {
+            if (typeof window.APP_CONFIG !== 'undefined') {
+                CONFIG = { ...CONFIG, ...window.APP_CONFIG };
+            }
+        }
 
         // Initialize variables
         let userId = localStorage.getItem('userId') || generateUserId();
@@ -566,7 +577,6 @@
             const typingIndicator = document.getElementById('typingIndicator');
             if (show) {
                 typingIndicator.classList.add('active');
-                // Scroll to show typing indicator
                 const chatMessages = document.getElementById('chatMessages');
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             } else {
@@ -586,7 +596,7 @@
 
         // Save to Supabase
         async function saveToSupabase(message, sender) {
-            if (!CONFIG.SUPABASE_URL || CONFIG.SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+            if (!CONFIG.SUPABASE_URL || CONFIG.SUPABASE_URL === 'YOUR_SUPABASE_URL' || !CONFIG.SUPABASE_URL.includes('supabase.co')) {
                 console.log('Supabase not configured');
                 return;
             }
@@ -603,7 +613,8 @@
                         session_id: sessionId,
                         user_id: userId,
                         message: message,
-                        sender: sender
+                        sender: sender,
+                        timestamp: new Date().toISOString()
                     })
                 });
 
@@ -617,7 +628,7 @@
 
         // Load chat history from Supabase
         async function loadChatHistory() {
-            if (!CONFIG.SUPABASE_URL || CONFIG.SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+            if (!CONFIG.SUPABASE_URL || CONFIG.SUPABASE_URL === 'YOUR_SUPABASE_URL' || !CONFIG.SUPABASE_URL.includes('supabase.co')) {
                 return;
             }
 
@@ -648,7 +659,7 @@
 
         // Call Gemini API
         async function callGeminiAPI(userMessage) {
-            if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY') {
+            if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY' || CONFIG.GEMINI_API_KEY === 'key') {
                 return "Please configure your Gemini API key in the config.js file.";
             }
 
@@ -695,7 +706,8 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('API request failed');
+                    const errorData = await response.json();
+                    throw new Error(`API request failed: ${errorData.error?.message || response.status}`);
                 }
 
                 const data = await response.json();
@@ -800,14 +812,51 @@
             sessionId = generateSessionId();
         }
 
+        // Initialize event listeners
+        function initializeEventListeners() {
+            // Chat input event listeners
+            const chatInput = document.getElementById('chatInput');
+            const sendBtn = document.getElementById('sendBtn');
+            
+            chatInput.addEventListener('keypress', handleKeyPress);
+            sendBtn.addEventListener('click', sendMessage);
+            
+            // Settings event listeners
+            const settingsBtn = document.getElementById('settingsButton');
+            const cancelBtn = document.getElementById('cancelSettings');
+            const saveBtn = document.getElementById('saveSettingsBtn');
+            const settingsModal = document.getElementById('settingsModal');
+            
+            if (settingsBtn) {
+                settingsBtn.addEventListener('click', openSettings);
+            }
+            
+            cancelBtn.addEventListener('click', closeSettings);
+            saveBtn.addEventListener('click', saveSettings);
+            
+            // Close modal when clicking outside
+            settingsModal.addEventListener('click', function(event) {
+                if (event.target === settingsModal) {
+                    closeSettings();
+                }
+            });
+        }
+
         // Initialize on load
-        window.addEventListener('load', async () => {
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Load config first
+            loadConfig();
+            
+            // Initialize event listeners
+            initializeEventListeners();
+            
             // Set system prompt from config if available
             if (CONFIG.DEFAULT_SYSTEM_PROMPT) {
                 systemPrompt = CONFIG.DEFAULT_SYSTEM_PROMPT;
                 localStorage.setItem('systemPrompt', systemPrompt);
             }
             
+            // Load chat history
             await loadChatHistory();
             
             // Check for Adalo parameters
@@ -821,18 +870,32 @@
             // Admin mode: Show settings if admin=true in URL
             const isAdmin = urlParams.get('admin');
             if (isAdmin === 'true') {
-                document.querySelector('.settings-btn').style.display = 'block';
+                const settingsBtn = document.getElementById('settingsButton');
+                if (settingsBtn) {
+                    settingsBtn.style.display = 'block';
+                }
             }
         });
 
         // Handle messages from Adalo
         window.addEventListener('message', function(event) {
-            if (event.data.type === 'ADALO_USER_ID') {
+            if (event.data && event.data.type === 'ADALO_USER_ID') {
                 userId = event.data.userId;
                 localStorage.setItem('userId', userId);
                 loadChatHistory();
             }
         });
+
+        // Load config.js dynamically
+        const script = document.createElement('script');
+        script.src = 'config.js';
+        script.onerror = function() {
+            console.warn('config.js not found, using default configuration');
+        };
+        script.onload = function() {
+            loadConfig();
+        };
+        document.head.appendChild(script);
     </script>
 </body>
 </html>
