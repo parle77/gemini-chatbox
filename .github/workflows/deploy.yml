@@ -1,29 +1,30 @@
-name: Build and Deploy
+name: Deploy to GitHub Pages
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v3
-
-    - name: Generate config with secrets
+      
+    - name: Create config with real values
+      env:
+        GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
+        SUPABASE_URL_SECRET: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_KEY_SECRET: ${{ secrets.SUPABASE_ANON_KEY }}
       run: |
-        cat > config.js << 'EOF'
-        const APP_CONFIG = {
-            GEMINI_API_KEY: '${{ secrets.GEMINI_API_KEY }}',
-            SUPABASE_URL: '${{ secrets.SUPABASE_URL }}',
-            SUPABASE_ANON_KEY: '${{ secrets.SUPABASE_ANON_KEY }}',
-            DEFAULT_SYSTEM_PROMPT: `You are Elle, a specialized gut health assistant for the Gutty app. You help users with digestive health questions, gut microbiome information, probiotic and prebiotic guidance, IBS, IBD, and digestive disorder support, and nutrition for gut health. Always be friendly, supportive, and remind users to consult healthcare professionals for serious issues.`,
-            BOT_NAME: 'Elle',
-            BOT_AVATAR: '🤖'
-        };
-        EOF
-
+        echo "const APP_CONFIG = {" > config.js
+        echo "    GEMINI_API_KEY: '$GEMINI_KEY'," >> config.js
+        echo "    SUPABASE_URL: '$SUPABASE_URL_SECRET'," >> config.js
+        echo "    SUPABASE_ANON_KEY: '$SUPABASE_KEY_SECRET'," >> config.js
+        echo "    DEFAULT_SYSTEM_PROMPT: \`You are Elle, a specialized gut health assistant for the Gutty app. You help users with digestive health questions, gut microbiome information, probiotic and prebiotic guidance, IBS, IBD, and digestive disorder support, and nutrition for gut health. Always be friendly, supportive, and remind users to consult healthcare professionals for serious issues.\`," >> config.js
+        echo "    BOT_NAME: 'Elle'," >> config.js
+        echo "    BOT_AVATAR: '🤖'" >> config.js
+        echo "};" >> config.js
+        
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
