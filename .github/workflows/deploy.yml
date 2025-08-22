@@ -10,13 +10,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
       
-    - name: Debug - Show original config
-      run: |
-        echo "=== ORIGINAL CONFIG ==="
-        cat config.js
-        echo "======================="
-        
-    - name: Create new config with secrets
+    - name: Create config with secrets
       run: |
         cat > config.js << 'EOF'
         const APP_CONFIG = {
@@ -27,14 +21,10 @@ jobs:
             BOT_NAME: 'Elle',
             BOT_AVATAR: '🤖'
         };
-        EOF
         
-    - name: Debug - Show new config (first 2 lines only for security)
-      run: |
-        echo "=== NEW CONFIG (partial) ==="
-        head -2 config.js
-        echo "... (rest hidden for security)"
-        echo "=========================="
+        // Make it available globally
+        window.APP_CONFIG = APP_CONFIG;
+        EOF
         
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
