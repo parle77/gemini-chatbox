@@ -507,216 +507,219 @@
     </div>
 
     <script>
-    // Simple direct approach - load config immediately
-    let CONFIG = {
-        GEMINI_API_KEY: '',
-        SUPABASE_URL: '',
-        SUPABASE_ANON_KEY: '',
-        DEFAULT_SYSTEM_PROMPT: 'You are Elle, a specialized gut health assistant for the Gutty app.',
-        BOT_NAME: 'Elle',
-        BOT_AVATAR: '🤖'
-    };
+        // Get config from loaded script - simple and direct
+        const CONFIG = window.APP_CONFIG || {};
+        
+        console.log('Config loaded:', CONFIG.GEMINI_API_KEY ? 'Yes' : 'No');
 
-    // Try to get config from the already loaded script
-    setTimeout(() => {
-        if (typeof APP_CONFIG !== 'undefined') {
-            CONFIG = { ...CONFIG, ...APP_CONFIG };
-            console.log('✅ Config loaded from APP_CONFIG');
-        } else if (window.APP_CONFIG) {
-            CONFIG = { ...CONFIG, ...window.APP_CONFIG };
-            console.log('✅ Config loaded from window.APP_CONFIG');
-        } else {
-            console.log('❌ No config found, using fallback');
+        // Initialize variables
+        let userId = localStorage.getItem('userId') || generateUserId();
+        let sessionId = generateSessionId();
+        let systemPrompt = CONFIG.DEFAULT_SYSTEM_PROMPT || 'You are Elle, a gut health assistant.';
+        let chatHistory = [];
+
+        // Generate unique IDs
+        function generateUserId() {
+            const id = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('userId', id);
+            return id;
         }
-        
-        console.log('Final config status:', CONFIG.GEMINI_API_KEY ? 'API key present' : 'No API key');
-        
-        // Enable the chatbox
-        document.getElementById('chatInput').disabled = false;
-        document.getElementById('sendBtn').disabled = false;
-    }, 500);
 
-    // Initialize variables
-    let userId = localStorage.getItem('userId') || generateUserId();
-    let sessionId = generateSessionId();
-    let systemPrompt = CONFIG.DEFAULT_SYSTEM_PROMPT;
-    let chatHistory = [];
+        function generateSessionId() {
+            return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
 
-    // Generate unique IDs
-    function generateUserId() {
-        const id = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        localStorage.setItem('userId', id);
-        return id;
-    }
+        // Format time
+        function formatTime(date) {
+            return new Intl.DateTimeFormat('en-US', {
+                hour: 'numeric',
+                minute: 'numeric',
+                hour12: true
+            }).format(date);
+        }
 
-    function generateSessionId() {
-        return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    }
-
-    // Format time
-    function formatTime(date) {
-        return new Intl.DateTimeFormat('en-US', {
-            hour: 'numeric',
-            minute: 'numeric',
-            hour12: true
-        }).format(date);
-    }
-
-    // Add message to chat UI
-    function addMessageToUI(message, sender, timestamp = null) {
-        const chatMessages = document.getElementById('chatMessages');
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${sender}`;
-        
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'message-content';
-        
-        const messageText = document.createElement('div');
-        messageText.textContent = message;
-        
-        const timeDiv = document.createElement('div');
-        timeDiv.className = 'message-time';
-        timeDiv.textContent = formatTime(timestamp || new Date());
-        
-        contentDiv.appendChild(messageText);
-        contentDiv.appendChild(timeDiv);
-        messageDiv.appendChild(contentDiv);
-        
-        chatMessages.appendChild(messageDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    // Show/hide typing indicator
-    function toggleTyping(show) {
-        const typingIndicator = document.getElementById('typingIndicator');
-        if (show) {
-            typingIndicator.classList.add('active');
+        // Add message to chat UI
+        function addMessageToUI(message, sender, timestamp = null) {
             const chatMessages = document.getElementById('chatMessages');
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        } else {
-            typingIndicator.classList.remove('active');
-        }
-    }
-
-    // Show error message
-    function showError(message) {
-        const errorDiv = document.getElementById('errorMessage');
-        errorDiv.textContent = message;
-        errorDiv.classList.add('active');
-        setTimeout(() => {
-            errorDiv.classList.remove('active');
-        }, 5000);
-    }
-
-    // Call Gemini API
-    async function callGeminiAPI(userMessage) {
-        if (!CONFIG.GEMINI_API_KEY) {
-            return "Please wait, configuration is still loading...";
-        }
-
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
-        
-        const messages = chatHistory.length === 0 
-            ? [{ role: 'user', parts: [{ text: systemPrompt + '\n\nUser: ' + userMessage }] }]
-            : [...chatHistory, { role: 'user', parts: [{ text: userMessage }] }];
-
-        try {
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    contents: messages,
-                    generationConfig: {
-                        temperature: 0.7,
-                        topK: 1,
-                        topP: 1,
-                        maxOutputTokens: 2048,
-                    }
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`API request failed: ${response.status}`);
-            }
-
-            const data = await response.json();
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
             
-            if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-                const botResponse = data.candidates[0].content.parts[0].text;
-                
-                chatHistory.push(
-                    { role: 'user', parts: [{ text: userMessage }] },
-                    { role: 'model', parts: [{ text: botResponse }] }
-                );
-                
-                return botResponse;
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            const messageText = document.createElement('div');
+            messageText.textContent = message;
+            
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'message-time';
+            timeDiv.textContent = formatTime(timestamp || new Date());
+            
+            contentDiv.appendChild(messageText);
+            contentDiv.appendChild(timeDiv);
+            messageDiv.appendChild(contentDiv);
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Show/hide typing indicator
+        function toggleTyping(show) {
+            const typingIndicator = document.getElementById('typingIndicator');
+            if (show) {
+                typingIndicator.classList.add('active');
+                const chatMessages = document.getElementById('chatMessages');
+                chatMessages.scrollTop = chatMessages.scrollHeight;
             } else {
-                throw new Error('Invalid response from API');
+                typingIndicator.classList.remove('active');
             }
-        } catch (error) {
-            console.error('Gemini API error:', error);
-            return "I'm sorry, I encountered an error. Please try again later.";
         }
-    }
 
-    // Send message
-    async function sendMessage() {
-        const input = document.getElementById('chatInput');
-        const sendBtn = document.getElementById('sendBtn');
-        const message = input.value.trim();
-        
-        if (!message) return;
-        
-        input.disabled = true;
-        sendBtn.disabled = true;
-        
-        addMessageToUI(message, 'user');
-        input.value = '';
-        toggleTyping(true);
-        
-        try {
-            const botResponse = await callGeminiAPI(message);
-            toggleTyping(false);
-            addMessageToUI(botResponse, 'bot');
-        } catch (error) {
-            toggleTyping(false);
-            showError('Failed to get response. Please try again.');
-        } finally {
-            input.disabled = false;
-            sendBtn.disabled = false;
-            input.focus();
+        // Show error message
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('active');
+            setTimeout(() => {
+                errorDiv.classList.remove('active');
+            }, 5000);
         }
-    }
 
-    // Handle enter key
-    function handleKeyPress(event) {
-        if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault();
-            sendMessage();
+        // Call Gemini API
+        async function callGeminiAPI(userMessage) {
+            if (!CONFIG.GEMINI_API_KEY) {
+                return "Configuration error: API key not found.";
+            }
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
+            
+            const messages = chatHistory.length === 0 
+                ? [{ role: 'user', parts: [{ text: systemPrompt + '\n\nUser: ' + userMessage }] }]
+                : [...chatHistory, { role: 'user', parts: [{ text: userMessage }] }];
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: messages,
+                        generationConfig: {
+                            temperature: 0.7,
+                            topK: 1,
+                            topP: 1,
+                            maxOutputTokens: 2048,
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API request failed: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                    const botResponse = data.candidates[0].content.parts[0].text;
+                    
+                    chatHistory.push(
+                        { role: 'user', parts: [{ text: userMessage }] },
+                        { role: 'model', parts: [{ text: botResponse }] }
+                    );
+                    
+                    return botResponse;
+                } else {
+                    throw new Error('Invalid response from API');
+                }
+            } catch (error) {
+                console.error('Gemini API error:', error);
+                return "I'm sorry, I encountered an error. Please try again later.";
+            }
         }
-    }
 
-    // Initialize event listeners
-    function initializeEventListeners() {
-        const chatInput = document.getElementById('chatInput');
-        const sendBtn = document.getElementById('sendBtn');
-        
-        chatInput.addEventListener('keypress', handleKeyPress);
-        sendBtn.addEventListener('click', sendMessage);
-    }
+        // Send message
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            input.disabled = true;
+            sendBtn.disabled = true;
+            
+            addMessageToUI(message, 'user');
+            input.value = '';
+            toggleTyping(true);
+            
+            try {
+                const botResponse = await callGeminiAPI(message);
+                toggleTyping(false);
+                addMessageToUI(botResponse, 'bot');
+            } catch (error) {
+                toggleTyping(false);
+                showError('Failed to get response. Please try again.');
+            } finally {
+                input.disabled = false;
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        }
 
-    // Initialize immediately
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('🚀 Starting simple initialization...');
-        initializeEventListeners();
-        
-        // Disable input initially
-        document.getElementById('chatInput').disabled = true;
-        document.getElementById('sendBtn').disabled = true;
-        document.getElementById('chatInput').placeholder = 'Loading configuration...';
-    });
-</script>
+        // Handle enter key
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // Settings functions
+        function openSettings() {
+            document.getElementById('settingsModal').classList.add('active');
+            document.getElementById('userIdInput').value = userId;
+            document.getElementById('systemPromptInput').value = systemPrompt;
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.remove('active');
+        }
+
+        function saveSettings() {
+            userId = document.getElementById('userIdInput').value || generateUserId();
+            systemPrompt = document.getElementById('systemPromptInput').value || systemPrompt;
+            
+            localStorage.setItem('userId', userId);
+            localStorage.setItem('systemPrompt', systemPrompt);
+            
+            closeSettings();
+            chatHistory = [];
+            sessionId = generateSessionId();
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Chatbot initialized');
+            
+            // Set up event listeners
+            document.getElementById('chatInput').addEventListener('keypress', handleKeyPress);
+            document.getElementById('sendBtn').addEventListener('click', sendMessage);
+            document.getElementById('cancelSettings').addEventListener('click', closeSettings);
+            document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+            
+            // Handle Adalo userId parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const adaloUserId = urlParams.get('userId');
+            if (adaloUserId) {
+                userId = adaloUserId;
+                localStorage.setItem('userId', userId);
+            }
+            
+            // Show settings button if admin mode
+            if (urlParams.get('admin') === 'true') {
+                const settingsBtn = document.getElementById('settingsButton');
+                settingsBtn.style.display = 'block';
+                settingsBtn.addEventListener('click', openSettings);
+            }
+        });
+    </script>
 </body>
 </html>
