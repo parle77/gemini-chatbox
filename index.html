@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Assistant Chatbot</title>
+    <!-- Load config.js FIRST in head section -->
+    <script src="config.js"></script>
     <style>
         /* Modern Chat Interface with Custom Brand Colors */
         :root {
@@ -441,7 +443,7 @@
             <div class="bot-info">
                 <div class="bot-avatar">🤖</div>
                 <div>
-                    <div class="bot-name">AI Assistant</div>
+                    <div class="bot-name">Ask ELLE</div>
                     <div class="bot-status">● Online</div>
                 </div>
             </div>
@@ -505,24 +507,16 @@
     </div>
 
     <script>
-        // Configuration - fallback if config.js is not loaded
-        let CONFIG = {
-            // Remove API keys from frontend
-            USE_PROXY: true, // Use backend proxy instead of direct API calls
-            PROXY_URL: 'https://your-site-name.netlify.app/.netlify/functions/chat', // Update this
-            SUPABASE_URL: '', // Keep empty or use public read-only data
-            SUPABASE_ANON_KEY: '', // Keep empty or use public read-only key
-            DEFAULT_SYSTEM_PROMPT: 'You are a helpful AI assistant. Your name is Elle. You are here to help users on the topic of Gut health on the app Gutty. Be concise and friendly in your responses.',
+        // Configuration - loaded from config.js in head
+        let CONFIG = window.APP_CONFIG || {
+            DEFAULT_SYSTEM_PROMPT: 'You are Elle, a gut health assistant.',
             BOT_NAME: 'Elle',
             BOT_AVATAR: '🤖'
         };
 
-        // Try to load external config
-        function loadConfig() {
-            if (typeof window.APP_CONFIG !== 'undefined') {
-                CONFIG = { ...CONFIG, ...window.APP_CONFIG };
-            }
-        }
+        // Debug: Check if config loaded properly
+        console.log('Config status:', CONFIG.GEMINI_API_KEY ? '✅ API key loaded' : '❌ No API key found');
+        console.log('Supabase:', CONFIG.SUPABASE_URL ? '✅ URL loaded' : '❌ No Supabase URL');
 
         // Initialize variables
         let userId = localStorage.getItem('userId') || generateUserId();
@@ -598,12 +592,9 @@
 
         // Save to Supabase
         async function saveToSupabase(message, sender) {
-            // Skip Supabase if not properly configured
-            if (!CONFIG.SUPABASE_URL || 
-                CONFIG.SUPABASE_URL === 'PLACEHOLDER_SUPABASE_URL' ||
-                !CONFIG.SUPABASE_URL.includes('supabase.co') ||
-                !CONFIG.SUPABASE_ANON_KEY ||
-                CONFIG.SUPABASE_ANON_KEY === 'PLACEHOLDER_SUPABASE_KEY') {
+            if (!CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY || 
+                CONFIG.SUPABASE_URL.includes('PLACEHOLDER') || 
+                CONFIG.SUPABASE_ANON_KEY.includes('PLACEHOLDER')) {
                 console.log('Supabase not configured - messages will not be saved');
                 return;
             }
@@ -626,9 +617,7 @@
                 });
 
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('Supabase error details:', errorText);
-                    throw new Error(`Failed to save to Supabase: ${response.status} - ${errorText}`);
+                    throw new Error(`Failed to save to Supabase: ${response.status}`);
                 }
             } catch (error) {
                 console.error('Supabase save error:', error);
@@ -637,12 +626,9 @@
 
         // Load chat history from Supabase
         async function loadChatHistory() {
-            // Skip Supabase if not properly configured
-            if (!CONFIG.SUPABASE_URL || 
-                CONFIG.SUPABASE_URL === 'PLACEHOLDER_SUPABASE_URL' ||
-                !CONFIG.SUPABASE_URL.includes('supabase.co') ||
-                !CONFIG.SUPABASE_ANON_KEY ||
-                CONFIG.SUPABASE_ANON_KEY === 'PLACEHOLDER_SUPABASE_KEY') {
+            if (!CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY || 
+                CONFIG.SUPABASE_URL.includes('PLACEHOLDER') || 
+                CONFIG.SUPABASE_ANON_KEY.includes('PLACEHOLDER')) {
                 console.log('Supabase not configured - chat history will not be loaded');
                 return;
             }
@@ -662,65 +648,32 @@
                     const messages = await response.json();
                     console.log(`Loading ${messages.length} previous messages for user: ${userId}`);
                     
-                    // Clear existing chat display (except welcome message)
-                    const chatMessages = document.getElementById('chatMessages');
-                    const welcomeMessage = chatMessages.querySelector('.message.bot');
-                    chatMessages.innerHTML = '';
-                    if (welcomeMessage) {
-                        chatMessages.appendChild(welcomeMessage);
-                    }
-                    
-                    // Load previous messages into UI and history
                     messages.forEach(msg => {
-                        // Add to chat history for API
                         chatHistory.push({
                             role: msg.sender === 'user' ? 'user' : 'model',
                             parts: [{ text: msg.message }]
                         });
                         
-                        // Add to UI (skip if it's the same as welcome message)
                         if (!(msg.sender === 'bot' && msg.message.includes('Hello! I\'m Elle'))) {
                             addMessageToUI(msg.message, msg.sender, new Date(msg.timestamp));
                         }
                     });
-                    
-                    if (messages.length > 0) {
-                        console.log('Chat history loaded successfully');
-                    }
-                } else {
-                    console.error('Failed to load chat history:', response.status);
                 }
             } catch (error) {
                 console.error('Failed to load chat history:', error);
             }
         }
 
-        // Call Gemini API via proxy
+        // Call Gemini API
         async function callGeminiAPI(userMessage) {
-            // Check if using proxy
-            if (CONFIG.USE_PROXY && CONFIG.PROXY_URL) {
-                return await callGeminiViaProxy(userMessage);
-            }
-            
-            // Fallback to direct API (for local development)
-            if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY' || CONFIG.GEMINI_API_KEY === 'key') {
-                return "API not configured. Please use proxy or configure API key for local development.";
+            if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY.includes('PLACEHOLDER')) {
+                return "Configuration error: API key not loaded properly. Please refresh the page.";
             }
 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
             
-            // Enhanced system prompt with context awareness
-            const enhancedSystemPrompt = `${systemPrompt}
-
-CONVERSATION CONTEXT: You're having an ongoing conversation with this user. Use their chat history to provide personalized responses. Reference previous topics they've mentioned when relevant.
-
-CURRENT USER MESSAGE: "${userMessage}"
-
-Respond as Elle, keeping your personality consistent and building on the conversation context.`;
-            
-            // Add system prompt as first message if history is empty
             const messages = chatHistory.length === 0 
-                ? [{ role: 'user', parts: [{ text: enhancedSystemPrompt + '\n\nUser: ' + userMessage }] }]
+                ? [{ role: 'user', parts: [{ text: systemPrompt + '\n\nUser: ' + userMessage }] }]
                 : [...chatHistory, { role: 'user', parts: [{ text: userMessage }] }];
 
             try {
@@ -759,8 +712,7 @@ Respond as Elle, keeping your personality consistent and building on the convers
                 });
 
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(`API request failed: ${errorData.error?.message || response.status}`);
+                    throw new Error(`API request failed: ${response.status}`);
                 }
 
                 const data = await response.json();
@@ -768,7 +720,6 @@ Respond as Elle, keeping your personality consistent and building on the convers
                 if (data.candidates && data.candidates[0] && data.candidates[0].content) {
                     const botResponse = data.candidates[0].content.parts[0].text;
                     
-                    // Update chat history
                     chatHistory.push(
                         { role: 'user', parts: [{ text: userMessage }] },
                         { role: 'model', parts: [{ text: botResponse }] }
@@ -784,59 +735,6 @@ Respond as Elle, keeping your personality consistent and building on the convers
             }
         }
 
-        // Call Gemini API via backend proxy
-        async function callGeminiViaProxy(userMessage) {
-            try {
-                // Enhanced system prompt with context awareness
-                const enhancedSystemPrompt = `${systemPrompt}
-
-CONVERSATION CONTEXT: You're having an ongoing conversation with this user. Use their chat history to provide personalized responses. Reference previous topics they've mentioned when relevant.
-
-CURRENT USER MESSAGE: "${userMessage}"
-
-Respond as Elle, keeping your personality consistent and building on the conversation context.`;
-                
-                // Add system prompt as first message if history is empty
-                const messages = chatHistory.length === 0 
-                    ? [{ role: 'user', parts: [{ text: enhancedSystemPrompt + '\n\nUser: ' + userMessage }] }]
-                    : [...chatHistory, { role: 'user', parts: [{ text: userMessage }] }];
-
-                const response = await fetch(CONFIG.PROXY_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        message: userMessage,
-                        chatHistory: messages
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Proxy request failed: ${response.status}`);
-                }
-
-                const data = await response.json();
-                
-                if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-                    const botResponse = data.candidates[0].content.parts[0].text;
-                    
-                    // Update chat history
-                    chatHistory.push(
-                        { role: 'user', parts: [{ text: userMessage }] },
-                        { role: 'model', parts: [{ text: botResponse }] }
-                    );
-                    
-                    return botResponse;
-                } else {
-                    throw new Error('Invalid response from proxy');
-                }
-            } catch (error) {
-                console.error('Proxy API error:', error);
-                return "I'm sorry, I encountered an error. Please try again later.";
-            }
-        }
-
         // Send message
         async function sendMessage() {
             const input = document.getElementById('chatInput');
@@ -845,40 +743,24 @@ Respond as Elle, keeping your personality consistent and building on the convers
             
             if (!message) return;
             
-            // Disable input and button
             input.disabled = true;
             sendBtn.disabled = true;
             
-            // Add user message to UI
             addMessageToUI(message, 'user');
-            
-            // Save user message to Supabase
             await saveToSupabase(message, 'user');
             
-            // Clear input
             input.value = '';
-            
-            // Show typing indicator
             toggleTyping(true);
             
             try {
-                // Get bot response
                 const botResponse = await callGeminiAPI(message);
-                
-                // Hide typing indicator
                 toggleTyping(false);
-                
-                // Add bot response to UI
                 addMessageToUI(botResponse, 'bot');
-                
-                // Save bot response to Supabase
                 await saveToSupabase(botResponse, 'bot');
-                
             } catch (error) {
                 toggleTyping(false);
                 showError('Failed to get response. Please try again.');
             } finally {
-                // Re-enable input and button
                 input.disabled = false;
                 sendBtn.disabled = false;
                 input.focus();
@@ -893,7 +775,7 @@ Respond as Elle, keeping your personality consistent and building on the convers
             }
         }
 
-        // Settings modal functions
+        // Settings functions
         function openSettings() {
             document.getElementById('settingsModal').classList.add('active');
             document.getElementById('userIdInput').value = userId;
@@ -912,22 +794,18 @@ Respond as Elle, keeping your personality consistent and building on the convers
             localStorage.setItem('systemPrompt', systemPrompt);
             
             closeSettings();
-            
-            // Reset chat history when settings change
             chatHistory = [];
             sessionId = generateSessionId();
         }
 
         // Initialize event listeners
         function initializeEventListeners() {
-            // Chat input event listeners
             const chatInput = document.getElementById('chatInput');
             const sendBtn = document.getElementById('sendBtn');
             
             chatInput.addEventListener('keypress', handleKeyPress);
             sendBtn.addEventListener('click', sendMessage);
             
-            // Settings event listeners
             const settingsBtn = document.getElementById('settingsButton');
             const cancelBtn = document.getElementById('cancelSettings');
             const saveBtn = document.getElementById('saveSettingsBtn');
@@ -940,7 +818,6 @@ Respond as Elle, keeping your personality consistent and building on the convers
             cancelBtn.addEventListener('click', closeSettings);
             saveBtn.addEventListener('click', saveSettings);
             
-            // Close modal when clicking outside
             settingsModal.addEventListener('click', function(event) {
                 if (event.target === settingsModal) {
                     closeSettings();
@@ -948,61 +825,31 @@ Respond as Elle, keeping your personality consistent and building on the convers
             });
         }
 
-        // Load config.js dynamically and wait for it
-        function loadConfigScript() {
-            return new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = `config.js?v=${Date.now()}`; // Cache buster
-                script.onload = function() {
-                    loadConfig();
-                    resolve();
-                };
-                script.onerror = function() {
-                    console.error('Failed to load config.js');
-                    reject(new Error('config.js not found'));
-                };
-                document.head.appendChild(script);
-            });
-        }
-
         // Initialize on load
         document.addEventListener('DOMContentLoaded', async function() {
-            try {
-                // Load config first and wait for it
-                await loadConfigScript();
-                
-                // Initialize event listeners
-                initializeEventListeners();
-                
-                // Set system prompt from config if available
-                if (CONFIG.DEFAULT_SYSTEM_PROMPT) {
-                    systemPrompt = CONFIG.DEFAULT_SYSTEM_PROMPT;
-                    localStorage.setItem('systemPrompt', systemPrompt);
+            initializeEventListeners();
+            
+            if (CONFIG.DEFAULT_SYSTEM_PROMPT) {
+                systemPrompt = CONFIG.DEFAULT_SYSTEM_PROMPT;
+                localStorage.setItem('systemPrompt', systemPrompt);
+            }
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const adaloUserId = urlParams.get('userId');
+            if (adaloUserId) {
+                userId = adaloUserId;
+                localStorage.setItem('userId', userId);
+                console.log('Using Adalo userId:', userId);
+            }
+            
+            await loadChatHistory();
+            
+            const isAdmin = urlParams.get('admin');
+            if (isAdmin === 'true') {
+                const settingsBtn = document.getElementById('settingsButton');
+                if (settingsBtn) {
+                    settingsBtn.style.display = 'block';
                 }
-                
-                // Check for Adalo parameters first
-                const urlParams = new URLSearchParams(window.location.search);
-                const adaloUserId = urlParams.get('userId');
-                if (adaloUserId) {
-                    userId = adaloUserId;
-                    localStorage.setItem('userId', userId);
-                    console.log('Using Adalo userId:', userId);
-                }
-                
-                // Load chat history for this user
-                await loadChatHistory();
-                
-                // Admin mode: Show settings if admin=true in URL
-                const isAdmin = urlParams.get('admin');
-                if (isAdmin === 'true') {
-                    const settingsBtn = document.getElementById('settingsButton');
-                    if (settingsBtn) {
-                        settingsBtn.style.display = 'block';
-                    }
-                }
-            } catch (error) {
-                console.error('Failed to initialize:', error);
-                showError('Failed to load configuration. Please refresh the page.');
             }
         });
 
