@@ -10,12 +10,31 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
       
-    - name: Inject secrets into HTML
+    - name: Inject secrets into HTML (safe method)
+      env:
+        GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
+        SUPABASE_URL_SECRET: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_KEY_SECRET: ${{ secrets.SUPABASE_ANON_KEY }}
       run: |
-        # Replace placeholders in index.html with actual secrets
-        sed -i "s/PLACEHOLDER_GEMINI_KEY/${{ secrets.GEMINI_API_KEY }}/g" index.html
-        sed -i "s/PLACEHOLDER_SUPABASE_URL/${{ secrets.SUPABASE_URL }}/g" index.html
-        sed -i "s/PLACEHOLDER_SUPABASE_KEY/${{ secrets.SUPABASE_ANON_KEY }}/g" index.html
+        # Use Python to safely replace placeholders
+        python3 << 'EOF'
+        import os
+        
+        # Read the HTML file
+        with open('index.html', 'r') as f:
+            content = f.read()
+        
+        # Replace placeholders with actual values
+        content = content.replace('PLACEHOLDER_GEMINI_KEY', os.environ['GEMINI_KEY'])
+        content = content.replace('PLACEHOLDER_SUPABASE_URL', os.environ['SUPABASE_URL_SECRET'])
+        content = content.replace('PLACEHOLDER_SUPABASE_KEY', os.environ['SUPABASE_KEY_SECRET'])
+        
+        # Write back to file
+        with open('index.html', 'w') as f:
+            f.write(content)
+        
+        print("✅ Secrets injected successfully")
+        EOF
         
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
