@@ -601,19 +601,55 @@ console.log('==================');
 
         // Call Gemini API
         async function callGeminiAPI(userMessage) {
-    console.log('=== API CALL DEBUG ===');
-    console.log('API Key in function:', CONFIG.GEMINI_API_KEY);
-    console.log('Key length:', CONFIG.GEMINI_API_KEY?.length);
-    console.log('Key valid?:', CONFIG.GEMINI_API_KEY && CONFIG.GEMINI_API_KEY.length > 30 && !CONFIG.GEMINI_API_KEY.includes('PLACEHOLDER'));
-    console.log('====================');
-    
-    if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY.length < 30 || CONFIG.GEMINI_API_KEY.includes('PLACEHOLDER')) {
+    // Simple validation - just check if key exists and is long enough
+    if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY.length < 30) {
         return "Configuration error: API key not configured.";
     }
 
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
     
-    // Rest of your function stays the same...
+    const messages = chatHistory.length === 0 
+        ? [{ role: 'user', parts: [{ text: systemPrompt + '\n\nUser: ' + userMessage }] }]
+        : [...chatHistory, { role: 'user', parts: [{ text: userMessage }] }];
+
+    try {
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: messages,
+                generationConfig: {
+                    temperature: 0.7,
+                    topK: 1,
+                    topP: 1,
+                    maxOutputTokens: 2048,
+                }
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`API request failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+            const botResponse = data.candidates[0].content.parts[0].text;
+            
+            chatHistory.push(
+                { role: 'user', parts: [{ text: userMessage }] },
+                { role: 'model', parts: [{ text: botResponse }] }
+            );
+            
+            return botResponse;
+        } else {
+            throw new Error('Invalid response from API');
+        }
+    } catch (error) {
+        console.error('Gemini API error:', error);
+        return "I'm sorry, I encountered an error. Please try again later.";
+    }
+}
     
     
 
