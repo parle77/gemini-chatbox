@@ -507,25 +507,15 @@
     <script>
         // Configuration - placeholders will be replaced by GitHub Actions
         const CONFIG = {
-    GEMINI_API_KEY: 'PLACEHOLDER_GEMINI_KEY',
-    SUPABASE_URL: 'PLACEHOLDER_SUPABASE_URL',
-    SUPABASE_ANON_KEY: 'PLACEHOLDER_SUPABASE_KEY',
-    DEFAULT_SYSTEM_PROMPT: 'You are Elle, a specialized gut health assistant for the Gutty app. You help users with digestive health questions, gut microbiome information, probiotic and prebiotic guidance, IBS, IBD, and digestive disorder support, and nutrition for gut health. Always be friendly, supportive, and remind users to consult healthcare professionals for serious issues.',
-    BOT_NAME: 'Elle',
-    BOT_AVATAR: '🤖'
-};
-
-// DEBUG: Let's see what's actually in CONFIG
-console.log('=== CONFIG DEBUG ===');
-console.log('Full CONFIG object:', CONFIG);
-console.log('API Key value:', CONFIG.GEMINI_API_KEY);
-console.log('API Key length:', CONFIG.GEMINI_API_KEY?.length);
-console.log('Is placeholder?:', CONFIG.GEMINI_API_KEY === 'PLACEHOLDER_GEMINI_KEY');
-console.log('==================');
+            GEMINI_API_KEY: 'PLACEHOLDER_GEMINI_KEY',
+            SUPABASE_URL: 'PLACEHOLDER_SUPABASE_URL',
+            SUPABASE_ANON_KEY: 'PLACEHOLDER_SUPABASE_KEY',
+            DEFAULT_SYSTEM_PROMPT: 'You are Elle, a specialized gut health assistant for the Gutty app. You help users with digestive health questions, gut microbiome information, probiotic and prebiotic guidance, IBS, IBD, and digestive disorder support, and nutrition for gut health. Always be friendly, supportive, and remind users to consult healthcare professionals for serious issues.',
+            BOT_NAME: 'Elle',
+            BOT_AVATAR: '🤖'
+        };
         
-        
-        console.log('Config loaded:', CONFIG.GEMINI_API_KEY && CONFIG.GEMINI_API_KEY !== 'PLACEHOLDER_GEMINI_KEY' ? 'Yes' : 'No');
-        console.log('API Key present:', CONFIG.GEMINI_API_KEY ? 'Yes' : 'No');
+        console.log('Config loaded: API key is ready');
 
         // Initialize variables
         let userId = localStorage.getItem('userId') || generateUserId();
@@ -601,57 +591,10 @@ console.log('==================');
 
         // Call Gemini API
         async function callGeminiAPI(userMessage) {
-    // Simple validation - just check if key exists and is long enough
-    if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY.length < 30) {
-        return "Configuration error: API key not configured.";
-    }
-
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
-    
-    const messages = chatHistory.length === 0 
-        ? [{ role: 'user', parts: [{ text: systemPrompt + '\n\nUser: ' + userMessage }] }]
-        : [...chatHistory, { role: 'user', parts: [{ text: userMessage }] }];
-
-    try {
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: messages,
-                generationConfig: {
-                    temperature: 0.7,
-                    topK: 1,
-                    topP: 1,
-                    maxOutputTokens: 2048,
-                }
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`API request failed: ${response.status}`);
-        }
-
-        const data = await response.json();
-        
-        if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-            const botResponse = data.candidates[0].content.parts[0].text;
-            
-            chatHistory.push(
-                { role: 'user', parts: [{ text: userMessage }] },
-                { role: 'model', parts: [{ text: botResponse }] }
-            );
-            
-            return botResponse;
-        } else {
-            throw new Error('Invalid response from API');
-        }
-    } catch (error) {
-        console.error('Gemini API error:', error);
-        return "I'm sorry, I encountered an error. Please try again later.";
-    }
-}
-    
-    
+            // Simple validation - just check if key exists and is long enough
+            if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY.length < 30) {
+                return "Configuration error: API key not configured.";
+            }
 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
             
