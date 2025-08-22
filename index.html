@@ -515,7 +515,8 @@
             BOT_AVATAR: '🤖'
         };
         
-        console.log('Config loaded:', CONFIG.GEMINI_API_KEY !== 'PLACEHOLDER_GEMINI_KEY' ? 'Yes' : 'No');
+        
+        console.log('Config loaded:', CONFIG.GEMINI_API_KEY && CONFIG.GEMINI_API_KEY !== 'PLACEHOLDER_GEMINI_KEY' ? 'Yes' : 'No');
         console.log('API Key present:', CONFIG.GEMINI_API_KEY ? 'Yes' : 'No');
 
         // Initialize variables
