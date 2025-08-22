@@ -549,7 +549,7 @@
         }
 
         // Add message to chat UI
-        function addMessageToUI(message, sender) {
+        function addMessageToUI(message, sender, timestamp = null) {
             const chatMessages = document.getElementById('chatMessages');
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${sender}`;
@@ -562,7 +562,7 @@
             
             const timeDiv = document.createElement('div');
             timeDiv.className = 'message-time';
-            timeDiv.textContent = formatTime(new Date());
+            timeDiv.textContent = formatTime(timestamp || new Date());
             
             contentDiv.appendChild(messageText);
             contentDiv.appendChild(timeDiv);
@@ -625,7 +625,9 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to save to Supabase');
+                    const errorText = await response.text();
+                    console.error('Supabase error details:', errorText);
+                    throw new Error(`Failed to save to Supabase: ${response.status} - ${errorText}`);
                 }
             } catch (error) {
                 console.error('Supabase save error:', error);
@@ -658,12 +660,35 @@
 
                 if (response.ok) {
                     const messages = await response.json();
+                    console.log(`Loading ${messages.length} previous messages for user: ${userId}`);
+                    
+                    // Clear existing chat display (except welcome message)
+                    const chatMessages = document.getElementById('chatMessages');
+                    const welcomeMessage = chatMessages.querySelector('.message.bot');
+                    chatMessages.innerHTML = '';
+                    if (welcomeMessage) {
+                        chatMessages.appendChild(welcomeMessage);
+                    }
+                    
+                    // Load previous messages into UI and history
                     messages.forEach(msg => {
+                        // Add to chat history for API
                         chatHistory.push({
                             role: msg.sender === 'user' ? 'user' : 'model',
                             parts: [{ text: msg.message }]
                         });
+                        
+                        // Add to UI (skip if it's the same as welcome message)
+                        if (!(msg.sender === 'bot' && msg.message.includes('Hello! I\'m Elle'))) {
+                            addMessageToUI(msg.message, msg.sender, new Date(msg.timestamp));
+                        }
                     });
+                    
+                    if (messages.length > 0) {
+                        console.log('Chat history loaded successfully');
+                    }
+                } else {
+                    console.error('Failed to load chat history:', response.status);
                 }
             } catch (error) {
                 console.error('Failed to load chat history:', error);
@@ -869,16 +894,17 @@
                 localStorage.setItem('systemPrompt', systemPrompt);
             }
             
-            // Load chat history
-            await loadChatHistory();
-            
-            // Check for Adalo parameters
+            // Check for Adalo parameters first
             const urlParams = new URLSearchParams(window.location.search);
             const adaloUserId = urlParams.get('userId');
             if (adaloUserId) {
                 userId = adaloUserId;
                 localStorage.setItem('userId', userId);
+                console.log('Using Adalo userId:', userId);
             }
+            
+            // Load chat history for this user
+            await loadChatHistory();
             
             // Admin mode: Show settings if admin=true in URL
             const isAdmin = urlParams.get('admin');
