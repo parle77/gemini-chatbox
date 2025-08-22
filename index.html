@@ -111,6 +111,20 @@
             transform: rotate(45deg);
         }
 
+        .debug-info {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 10px;
+            padding: 5px 10px;
+            border-radius: 5px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .debug-info.show {
+            display: block;
+        }
+
         .chat-messages {
             flex: 1;
             overflow-y: auto;
@@ -284,6 +298,36 @@
             display: block;
         }
 
+        .status-indicator {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 11px;
+            margin: 5px 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .status-indicator.show {
+            display: block;
+        }
+
+        .status-indicator.success {
+            background: rgba(34, 160, 55, 0.2);
+            border: 1px solid rgba(34, 160, 55, 0.3);
+        }
+
+        .status-indicator.warning {
+            background: rgba(246, 214, 53, 0.2);
+            border: 1px solid rgba(246, 214, 53, 0.3);
+        }
+
+        .status-indicator.error {
+            background: rgba(220, 53, 69, 0.2);
+            border: 1px solid rgba(220, 53, 69, 0.3);
+        }
+
         /* Settings Modal */
         .settings-modal {
             display: none;
@@ -360,7 +404,7 @@
             margin-top: 20px;
         }
 
-        .settings-btn {
+        .settings-btn-modal {
             flex: 1;
             padding: 12px;
             border-radius: 8px;
@@ -371,23 +415,23 @@
             transition: all 0.3s;
         }
 
-        .settings-btn.save {
+        .settings-btn-modal.save {
             background: var(--primary-color);
             color: white;
         }
 
-        .settings-btn.save:hover {
+        .settings-btn-modal.save:hover {
             transform: translateY(-2px);
             background: var(--third-color);
             box-shadow: 0 4px 12px rgba(34, 97, 55, 0.3);
         }
 
-        .settings-btn.cancel {
+        .settings-btn-modal.cancel {
             background: var(--secondary-color);
             color: var(--text-color);
         }
 
-        .settings-btn.cancel:hover {
+        .settings-btn-modal.cancel:hover {
             background: #f5a099;
         }
 
@@ -443,10 +487,13 @@
                 <div>
                     <div class="bot-name">Ask ELLE</div>
                     <div class="bot-status">● Online</div>
+                    <div class="debug-info" id="debugInfo"></div>
                 </div>
             </div>
             <button class="settings-btn" id="settingsButton" style="display: none;">⚙️</button>
         </div>
+
+        <div class="status-indicator" id="statusIndicator"></div>
 
         <div class="chat-messages" id="chatMessages">
             <div class="message bot">
@@ -498,8 +545,8 @@
             </div>
             
             <div class="settings-buttons">
-                <button class="settings-btn cancel" id="cancelSettings">Cancel</button>
-                <button class="settings-btn save" id="saveSettingsBtn">Save</button>
+                <button class="settings-btn-modal cancel" id="cancelSettings">Cancel</button>
+                <button class="settings-btn-modal save" id="saveSettingsBtn">Save</button>
             </div>
         </div>
     </div>
@@ -515,14 +562,16 @@
         BOT_AVATAR: '🤖'
     };
     
-    console.log('Config loaded: API key is ready');
-    console.log('Supabase configured:', CONFIG.SUPABASE_URL !== 'PLACEHOLDER_SUPABASE_URL' ? 'Yes' : 'No');
-
     // Initialize variables
     let userId = localStorage.getItem('userId') || generateUserId();
     let sessionId = generateSessionId();
-    let systemPrompt = CONFIG.DEFAULT_SYSTEM_PROMPT;
+    let systemPrompt = localStorage.getItem('systemPrompt') || CONFIG.DEFAULT_SYSTEM_PROMPT;
     let chatHistory = [];
+    let isDebugMode = false;
+
+    console.log('🚀 Chatbot initialized');
+    console.log('Config loaded: API key is ready');
+    console.log('Supabase configured:', CONFIG.SUPABASE_URL !== 'PLACEHOLDER_SUPABASE_URL' ? 'Yes' : 'No');
 
     // Generate unique IDs
     function generateUserId() {
@@ -533,6 +582,29 @@
 
     function generateSessionId() {
         return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    // Debug and status functions
+    function showStatus(message, type = 'info', duration = 3000) {
+        const statusIndicator = document.getElementById('statusIndicator');
+        statusIndicator.textContent = message;
+        statusIndicator.className = `status-indicator show ${type}`;
+        
+        setTimeout(() => {
+            statusIndicator.classList.remove('show');
+        }, duration);
+    }
+
+    function updateDebugInfo() {
+        if (!isDebugMode) return;
+        
+        const debugInfo = document.getElementById('debugInfo');
+        debugInfo.innerHTML = `
+            User: ${userId.substring(0, 12)}...<br>
+            Session: ${sessionId.substring(0, 12)}...<br>
+            History: ${chatHistory.length} msgs
+        `;
+        debugInfo.classList.add('show');
     }
 
     // Format time
@@ -590,58 +662,122 @@
         }, 5000);
     }
 
-    // Save message to Supabase
-    async function saveToSupabase(message, sender) {
-        // Check if Supabase is configured
+    // Test Supabase connection
+    async function testSupabaseConnection() {
+        console.log('🔍 Testing Supabase connection...');
+        
         if (!CONFIG.SUPABASE_URL || 
             CONFIG.SUPABASE_URL === 'PLACEHOLDER_SUPABASE_URL' ||
             !CONFIG.SUPABASE_ANON_KEY ||
             CONFIG.SUPABASE_ANON_KEY === 'PLACEHOLDER_SUPABASE_KEY') {
-            console.log('Supabase not configured - messages will not be saved');
-            return;
+            console.log('⚠️ Supabase not configured');
+            showStatus('Database not configured', 'warning');
+            return false;
         }
 
         try {
+            const response = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/chat_messages?limit=1`, {
+                headers: {
+                    'apikey': CONFIG.SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`
+                }
+            });
+            
+            if (response.ok) {
+                console.log('✅ Supabase connection successful');
+                showStatus('Database connected', 'success');
+                return true;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ Supabase connection failed:', response.status, errorText);
+                showStatus('Database connection failed', 'error');
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ Supabase connection error:', error);
+            showStatus('Database connection error', 'error');
+            return false;
+        }
+    }
+
+    // Enhanced save to Supabase with detailed logging
+    async function saveToSupabase(message, sender) {
+        if (!CONFIG.SUPABASE_URL || 
+            CONFIG.SUPABASE_URL === 'PLACEHOLDER_SUPABASE_URL' ||
+            !CONFIG.SUPABASE_ANON_KEY ||
+            CONFIG.SUPABASE_ANON_KEY === 'PLACEHOLDER_SUPABASE_KEY') {
+            console.log('📝 Supabase not configured - messages will not be saved');
+            return { success: false, reason: 'not_configured' };
+        }
+
+        try {
+            const payload = {
+                session_id: sessionId,
+                user_id: userId,
+                message: message,
+                sender: sender,
+                timestamp: new Date().toISOString()
+            };
+
+            console.log('💾 Saving to Supabase:', {
+                user: userId.substring(0, 12) + '...',
+                sender: sender,
+                messageLength: message.length
+            });
+
             const response = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/chat_messages`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'apikey': CONFIG.SUPABASE_ANON_KEY,
-                    'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`
+                    'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
+                    'Prefer': 'return=minimal'
                 },
-                body: JSON.stringify({
-                    session_id: sessionId,
-                    user_id: userId,
-                    message: message,
-                    sender: sender,
-                    timestamp: new Date().toISOString()
-                })
+                body: JSON.stringify(payload)
             });
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('Supabase error details:', errorText);
-                throw new Error(`Failed to save to Supabase: ${response.status}`);
+                console.error('❌ Supabase save error:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    error: errorText
+                });
+                
+                if (response.status === 401) {
+                    showStatus('Authentication failed', 'error');
+                } else if (response.status === 404) {
+                    showStatus('Database table not found', 'error');
+                } else {
+                    showStatus('Failed to save message', 'error');
+                }
+                
+                return { success: false, error: errorText, status: response.status };
             } else {
-                console.log(`✅ Saved ${sender} message to Supabase for user: ${userId}`);
+                console.log(`✅ Saved ${sender} message to Supabase for user: ${userId.substring(0, 12)}...`);
+                return { success: true };
             }
         } catch (error) {
-            console.error('Supabase save error:', error);
+            console.error('❌ Supabase save error:', error);
+            showStatus('Network error saving message', 'error');
+            return { success: false, error: error.message };
         }
     }
 
-    // Load chat history from Supabase
+    // Enhanced load chat history
     async function loadChatHistory() {
-        // Check if Supabase is configured
         if (!CONFIG.SUPABASE_URL || 
             CONFIG.SUPABASE_URL === 'PLACEHOLDER_SUPABASE_URL' ||
             !CONFIG.SUPABASE_ANON_KEY ||
             CONFIG.SUPABASE_ANON_KEY === 'PLACEHOLDER_SUPABASE_KEY') {
-            console.log('Supabase not configured - chat history will not be loaded');
+            console.log('📚 Supabase not configured - chat history will not be loaded');
             return;
         }
 
         try {
+            console.log(`📚 Loading chat history for user: ${userId.substring(0, 12)}...`);
+            showStatus('Loading chat history...', 'info', 1000);
+            
             const response = await fetch(
                 `${CONFIG.SUPABASE_URL}/rest/v1/chat_messages?user_id=eq.${userId}&order=timestamp.asc&limit=50`,
                 {
@@ -654,46 +790,66 @@
 
             if (response.ok) {
                 const messages = await response.json();
-                console.log(`📚 Loading ${messages.length} previous messages for user: ${userId}`);
-                
-                // Load previous messages into chat history for API context
-                messages.forEach(msg => {
-                    chatHistory.push({
-                        role: msg.sender === 'user' ? 'user' : 'model',
-                        parts: [{ text: msg.message }]
-                    });
-                    
-                    // Add to UI (skip if it's the same as welcome message)
-                    if (!(msg.sender === 'bot' && msg.message.includes('Hello! I\'m Elle'))) {
-                        addMessageToUI(msg.message, msg.sender, new Date(msg.timestamp));
-                    }
-                });
+                console.log(`📚 Found ${messages.length} previous messages for user: ${userId.substring(0, 12)}...`);
                 
                 if (messages.length > 0) {
+                    showStatus(`Loaded ${messages.length} previous messages`, 'success');
+                    
+                    // Clear existing chat messages except welcome message
+                    const chatMessages = document.getElementById('chatMessages');
+                    const welcomeMessage = chatMessages.querySelector('.message.bot');
+                    chatMessages.innerHTML = '';
+                    if (welcomeMessage && messages.length === 0) {
+                        chatMessages.appendChild(welcomeMessage);
+                    }
+                    
+                    // Load previous messages into chat history for API context
+                    messages.forEach(msg => {
+                        chatHistory.push({
+                            role: msg.sender === 'user' ? 'user' : 'model',
+                            parts: [{ text: msg.message }]
+                        });
+                        
+                        // Add to UI (skip duplicating welcome message)
+                        if (!(msg.sender === 'bot' && msg.message.includes('Hello! I\'m Elle'))) {
+                            addMessageToUI(msg.message, msg.sender, new Date(msg.timestamp));
+                        }
+                    });
+                    
                     console.log('✅ Chat history loaded successfully');
+                    updateDebugInfo();
                 }
             } else {
-                console.error('Failed to load chat history:', response.status);
+                const errorText = await response.text();
+                console.error('❌ Failed to load chat history:', response.status, errorText);
+                showStatus('Failed to load chat history', 'error');
             }
         } catch (error) {
-            console.error('Failed to load chat history:', error);
+            console.error('❌ Failed to load chat history:', error);
+            showStatus('Error loading chat history', 'error');
         }
     }
 
-    // Call Gemini API
+    // Call Gemini API with enhanced error handling
     async function callGeminiAPI(userMessage) {
-        // Simple validation - just check if key exists and is long enough
-        if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY.length < 30) {
-            return "Configuration error: API key not configured.";
+        // Validate API key
+        if (!CONFIG.GEMINI_API_KEY || 
+            CONFIG.GEMINI_API_KEY === 'PLACEHOLDER_GEMINI_KEY' ||
+            CONFIG.GEMINI_API_KEY.length < 30) {
+            console.error('❌ Gemini API key not configured properly');
+            return "I'm sorry, the AI service is not configured properly. Please check the configuration.";
         }
 
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
         
+        // Prepare messages with system prompt if this is the first message
         const messages = chatHistory.length === 0 
             ? [{ role: 'user', parts: [{ text: systemPrompt + '\n\nUser: ' + userMessage }] }]
             : [...chatHistory, { role: 'user', parts: [{ text: userMessage }] }];
 
         try {
+            console.log('🤖 Calling Gemini API...');
+            
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -709,6 +865,8 @@
             });
 
             if (!response.ok) {
+                const errorText = await response.text();
+                console.error('❌ Gemini API error:', response.status, errorText);
                 throw new Error(`API request failed: ${response.status}`);
             }
 
@@ -717,22 +875,32 @@
             if (data.candidates && data.candidates[0] && data.candidates[0].content) {
                 const botResponse = data.candidates[0].content.parts[0].text;
                 
+                // Update chat history
                 chatHistory.push(
                     { role: 'user', parts: [{ text: userMessage }] },
                     { role: 'model', parts: [{ text: botResponse }] }
                 );
                 
+                console.log('✅ Gemini API response received');
+                updateDebugInfo();
                 return botResponse;
             } else {
+                console.error('❌ Invalid response structure from Gemini API:', data);
                 throw new Error('Invalid response from API');
             }
         } catch (error) {
-            console.error('Gemini API error:', error);
-            return "I'm sorry, I encountered an error. Please try again later.";
+            console.error('❌ Gemini API error:', error);
+            if (error.message.includes('API request failed: 403')) {
+                return "I'm sorry, there's an authentication issue with the AI service. Please check the API configuration.";
+            } else if (error.message.includes('API request failed: 429')) {
+                return "I'm sorry, the AI service is currently busy. Please try again in a moment.";
+            } else {
+                return "I'm sorry, I encountered an error. Please try again later.";
+            }
         }
     }
 
-    // Send message
+    // Send message with comprehensive error handling
     async function sendMessage() {
         const input = document.getElementById('chatInput');
         const sendBtn = document.getElementById('sendBtn');
@@ -740,32 +908,51 @@
         
         if (!message) return;
         
+        // Disable input while processing
         input.disabled = true;
         sendBtn.disabled = true;
         
+        // Add user message to UI immediately
         addMessageToUI(message, 'user');
         
         // Save user message to Supabase
-        await saveToSupabase(message, 'user');
+        const saveResult = await saveToSupabase(message, 'user');
+        if (saveResult.success) {
+            console.log('✅ User message saved to database');
+        } else {
+            console.log('⚠️ Failed to save user message:', saveResult.error);
+        }
         
+        // Clear input and show typing indicator
         input.value = '';
         toggleTyping(true);
         
         try {
+            // Get bot response
             const botResponse = await callGeminiAPI(message);
             toggleTyping(false);
+            
+            // Add bot response to UI
             addMessageToUI(botResponse, 'bot');
             
             // Save bot response to Supabase
-            await saveToSupabase(botResponse, 'bot');
+            const botSaveResult = await saveToSupabase(botResponse, 'bot');
+            if (botSaveResult.success) {
+                console.log('✅ Bot response saved to database');
+            } else {
+                console.log('⚠️ Failed to save bot response:', botSaveResult.error);
+            }
             
         } catch (error) {
             toggleTyping(false);
+            console.error('❌ Error in sendMessage:', error);
             showError('Failed to get response. Please try again.');
         } finally {
+            // Re-enable input
             input.disabled = false;
             sendBtn.disabled = false;
             input.focus();
+            updateDebugInfo();
         }
     }
 
@@ -789,20 +976,73 @@
     }
 
     function saveSettings() {
-        userId = document.getElementById('userIdInput').value || generateUserId();
-        systemPrompt = document.getElementById('systemPromptInput').value || systemPrompt;
+        const newUserId = document.getElementById('userIdInput').value || generateUserId();
+        const newSystemPrompt = document.getElementById('systemPromptInput').value || CONFIG.DEFAULT_SYSTEM_PROMPT;
+        
+        // Check if user ID changed
+        const userIdChanged = newUserId !== userId;
+        
+        userId = newUserId;
+        systemPrompt = newSystemPrompt;
         
         localStorage.setItem('userId', userId);
         localStorage.setItem('systemPrompt', systemPrompt);
         
         closeSettings();
-        chatHistory = [];
-        sessionId = generateSessionId();
+        
+        // If user ID changed, reset chat and load new history
+        if (userIdChanged) {
+            chatHistory = [];
+            sessionId = generateSessionId();
+            
+            // Clear chat messages except welcome
+            const chatMessages = document.getElementById('chatMessages');
+            chatMessages.innerHTML = `
+                <div class="message bot">
+                    <div class="message-content">
+                        <div>Hello! I'm Elle, your gut health assistant. How can I help you today?</div>
+                        <div class="message-time">${formatTime(new Date())}</div>
+                    </div>
+                </div>
+            `;
+            
+            // Load history for new user
+            loadChatHistory();
+            showStatus('Settings saved and chat reset', 'success');
+        } else {
+            showStatus('Settings saved', 'success');
+        }
+        
+        updateDebugInfo();
+    }
+
+    // Clear chat history
+    function clearChatHistory() {
+        if (confirm('Are you sure you want to clear all chat history? This cannot be undone.')) {
+            chatHistory = [];
+            sessionId = generateSessionId();
+            
+            // Reset UI to welcome message only
+            const chatMessages = document.getElementById('chatMessages');
+            chatMessages.innerHTML = `
+                <div class="message bot">
+                    <div class="message-content">
+                        <div>Hello! I'm Elle, your gut health assistant. How can I help you today?</div>
+                        <div class="message-time">${formatTime(new Date())}</div>
+                    </div>
+                </div>
+            `;
+            
+            showStatus('Chat history cleared', 'success');
+            updateDebugInfo();
+        }
     }
 
     // Initialize when page loads
     document.addEventListener('DOMContentLoaded', async function() {
         console.log('🚀 Chatbot initialized');
+        console.log('👤 User ID:', userId.substring(0, 12) + '...');
+        console.log('🔗 Session ID:', sessionId.substring(0, 12) + '...');
         
         // Set up event listeners
         document.getElementById('chatInput').addEventListener('keypress', handleKeyPress);
@@ -820,27 +1060,110 @@
             console.log('🔗 Using Adalo userId:', userId);
         }
         
-        // Load chat history for this user
-        await loadChatHistory();
-        
-        // Show settings button if admin mode
+        // Check for admin mode and debug mode
         if (urlParams.get('admin') === 'true') {
             const settingsBtn = document.getElementById('settingsButton');
             settingsBtn.style.display = 'block';
             settingsBtn.addEventListener('click', openSettings);
+            isDebugMode = true;
+            updateDebugInfo();
         }
+        
+        if (urlParams.get('debug') === 'true') {
+            isDebugMode = true;
+            updateDebugInfo();
+        }
+        
+        // Test connections and load data
+        showStatus('Initializing...', 'info', 1000);
+        
+        // Test Supabase connection
+        const supabaseConnected = await testSupabaseConnection();
+        
+        // Load chat history for this user
+        if (supabaseConnected) {
+            await loadChatHistory();
+        }
+        
+        // Focus on input
+        document.getElementById('chatInput').focus();
+        
+        console.log('✅ Initialization complete');
     });
 
     // Handle messages from Adalo (additional integration)
     window.addEventListener('message', function(event) {
         if (event.data && event.data.type === 'ADALO_USER_ID') {
-            userId = event.data.userId;
-            localStorage.setItem('userId', userId);
-            sessionId = generateSessionId();
-            console.log('📱 Received Adalo userId via postMessage:', userId);
-            loadChatHistory(); // Reload history for new user
+            const newUserId = event.data.userId;
+            if (newUserId !== userId) {
+                userId = newUserId;
+                localStorage.setItem('userId', userId);
+                sessionId = generateSessionId();
+                console.log('📱 Received Adalo userId via postMessage:', userId);
+                
+                // Reset chat and load new user's history
+                chatHistory = [];
+                const chatMessages = document.getElementById('chatMessages');
+                chatMessages.innerHTML = `
+                    <div class="message bot">
+                        <div class="message-content">
+                            <div>Hello! I'm Elle, your gut health assistant. How can I help you today?</div>
+                            <div class="message-time">${formatTime(new Date())}</div>
+                        </div>
+                    </div>
+                `;
+                
+                loadChatHistory();
+                showStatus('User switched', 'info');
+                updateDebugInfo();
+            }
         }
     });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(event) {
+        // Ctrl/Cmd + K to clear chat
+        if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+            event.preventDefault();
+            clearChatHistory();
+        }
+        
+        // Ctrl/Cmd + comma to open settings (if available)
+        if ((event.ctrlKey || event.metaKey) && event.key === ',') {
+            const settingsBtn = document.getElementById('settingsButton');
+            if (settingsBtn.style.display !== 'none') {
+                event.preventDefault();
+                openSettings();
+            }
+        }
+    });
+
+    // Handle window focus to refresh connection status
+    window.addEventListener('focus', function() {
+        // Test connection when window regains focus (useful for mobile)
+        if (Date.now() - lastConnectionTest > 30000) { // Test every 30 seconds max
+            testSupabaseConnection();
+            lastConnectionTest = Date.now();
+        }
+    });
+
+    let lastConnectionTest = Date.now();
+
+    // Export functions for debugging (only in debug mode)
+    if (new URLSearchParams(window.location.search).get('debug') === 'true') {
+        window.chatbotDebug = {
+            testConnection: testSupabaseConnection,
+            clearHistory: clearChatHistory,
+            showUserId: () => console.log('Current User ID:', userId),
+            showChatHistory: () => console.log('Chat History:', chatHistory),
+            showConfig: () => console.log('Config:', {
+                hasGeminiKey: !!CONFIG.GEMINI_API_KEY && CONFIG.GEMINI_API_KEY !== 'PLACEHOLDER_GEMINI_KEY',
+                hasSupabaseUrl: !!CONFIG.SUPABASE_URL && CONFIG.SUPABASE_URL !== 'PLACEHOLDER_SUPABASE_URL',
+                hasSupabaseKey: !!CONFIG.SUPABASE_ANON_KEY && CONFIG.SUPABASE_ANON_KEY !== 'PLACEHOLDER_SUPABASE_KEY'
+            })
+        };
+        console.log('🛠️ Debug mode enabled. Use window.chatbotDebug for debugging functions.');
+    }
 </script>
 </body>
 </html>
