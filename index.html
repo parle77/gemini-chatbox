@@ -603,15 +603,19 @@ console.log('==================');
         async function callGeminiAPI(userMessage) {
     console.log('=== API CALL DEBUG ===');
     console.log('API Key in function:', CONFIG.GEMINI_API_KEY);
-    console.log('Is placeholder?:', CONFIG.GEMINI_API_KEY === 'PLACEHOLDER_GEMINI_KEY');
-    console.log('Key exists?:', !!CONFIG.GEMINI_API_KEY);
+    console.log('Key length:', CONFIG.GEMINI_API_KEY?.length);
+    console.log('Key valid?:', CONFIG.GEMINI_API_KEY && CONFIG.GEMINI_API_KEY.length > 30 && !CONFIG.GEMINI_API_KEY.includes('PLACEHOLDER'));
     console.log('====================');
     
-    if (CONFIG.GEMINI_API_KEY === 'PLACEHOLDER_GEMINI_KEY' || !CONFIG.GEMINI_API_KEY) {
+    if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY.length < 30 || CONFIG.GEMINI_API_KEY.includes('PLACEHOLDER')) {
         return "Configuration error: API key not configured.";
     }
+
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
     
     // Rest of your function stays the same...
+    
+    
 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
             
