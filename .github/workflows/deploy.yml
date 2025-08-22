@@ -10,20 +10,11 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
       
-    - name: Create config with real values
-      env:
-        GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
-        SUPABASE_URL_SECRET: ${{ secrets.SUPABASE_URL }}
-        SUPABASE_KEY_SECRET: ${{ secrets.SUPABASE_ANON_KEY }}
+    - name: Replace placeholders with real values
       run: |
-        echo "const APP_CONFIG = {" > config.js
-        echo "    GEMINI_API_KEY: '$GEMINI_KEY'," >> config.js
-        echo "    SUPABASE_URL: '$SUPABASE_URL_SECRET'," >> config.js
-        echo "    SUPABASE_ANON_KEY: '$SUPABASE_KEY_SECRET'," >> config.js
-        echo "    DEFAULT_SYSTEM_PROMPT: \`You are Elle, a specialized gut health assistant for the Gutty app. You help users with digestive health questions, gut microbiome information, probiotic and prebiotic guidance, IBS, IBD, and digestive disorder support, and nutrition for gut health. Always be friendly, supportive, and remind users to consult healthcare professionals for serious issues.\`," >> config.js
-        echo "    BOT_NAME: 'Elle'," >> config.js
-        echo "    BOT_AVATAR: '🤖'" >> config.js
-        echo "};" >> config.js
+        sed -i "s/PLACEHOLDER_GEMINI_KEY/${{ secrets.GEMINI_API_KEY }}/g" config.js
+        sed -i "s/PLACEHOLDER_SUPABASE_URL/${{ secrets.SUPABASE_URL }}/g" config.js
+        sed -i "s/PLACEHOLDER_SUPABASE_KEY/${{ secrets.SUPABASE_ANON_KEY }}/g" config.js
         
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
