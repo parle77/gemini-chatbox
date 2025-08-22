@@ -1,26 +1,16 @@
-name: Deploy to GitHub Pages
-
+name: Build and Deploy
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
 jobs:
   build-and-deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
-        
+      uses: actions/checkout@v3
+
     - name: Generate config with secrets
       run: |
         cat > config.js << 'EOF'
@@ -28,31 +18,14 @@ jobs:
             GEMINI_API_KEY: '${{ secrets.GEMINI_API_KEY }}',
             SUPABASE_URL: '${{ secrets.SUPABASE_URL }}',
             SUPABASE_ANON_KEY: '${{ secrets.SUPABASE_ANON_KEY }}',
-            
-            DEFAULT_SYSTEM_PROMPT: `You are Elle, a specialized gut health assistant for the Gutty app.
-            
-            You help users with:
-            - Digestive health questions
-            - Gut microbiome information
-            - Probiotic and prebiotic guidance
-            - IBS, IBD, and digestive disorder support
-            - Nutrition for gut health
-            
-            Always be friendly, supportive, and remind users to consult healthcare professionals for serious issues.`,
-            
+            DEFAULT_SYSTEM_PROMPT: `You are Elle, a specialized gut health assistant for the Gutty app. You help users with digestive health questions, gut microbiome information, probiotic and prebiotic guidance, IBS, IBD, and digestive disorder support, and nutrition for gut health. Always be friendly, supportive, and remind users to consult healthcare professionals for serious issues.`,
             BOT_NAME: 'Elle',
             BOT_AVATAR: '🤖'
         };
         EOF
-        
-    - name: Setup Pages
-      uses: actions/configure-pages@v4
-      
-    - name: Upload artifact
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: '.'
-        
+
     - name: Deploy to GitHub Pages
-      id: deployment
-      uses: actions/deploy-pages@v4
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: .
