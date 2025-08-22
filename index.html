@@ -431,8 +431,68 @@
             color: var(--text-color);
         }
 
-        .settings-btn-modal.cancel:hover {
-            background: #f5a099;
+        .settings-btn-modal.clear {
+            background: #dc3545;
+            color: white;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .settings-btn-modal.clear:hover {
+            background: #c82333;
+        }
+
+        .info-display {
+            background: var(--light-gray);
+            border: 1px solid var(--border-gray);
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .info-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-label {
+            font-weight: 500;
+            color: var(--text-color);
+        }
+
+        .info-value {
+            font-family: monospace;
+            font-size: 12px;
+            padding: 2px 6px;
+            background: white;
+            border: 1px solid var(--border-gray);
+            border-radius: 4px;
+            max-width: 60%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .status-connected {
+            color: #28a745;
+        }
+
+        .status-disconnected {
+            color: #dc3545;
+        }
+
+        .status-configured {
+            color: #28a745;
+        }
+
+        .status-not-configured {
+            color: #ffc107;
         }
 
         /* Scrollbar Styling */
@@ -534,29 +594,75 @@
         <div class="settings-content">
             <h2 class="settings-title">⚙️ Settings</h2>
             
+            <!-- Admin Configuration (hidden from regular users) -->
+            <div class="admin-only" id="adminSettings" style="display: none;">
+                <div class="settings-group">
+                    <label class="settings-label">Gemini API Key</label>
+                    <input type="password" class="settings-input" id="geminiKeyInput" placeholder="Enter your Gemini API key">
+                </div>
+                
+                <div class="settings-group">
+                    <label class="settings-label">Supabase URL</label>
+                    <input type="text" class="settings-input" id="supabaseUrlInput" placeholder="https://your-project.supabase.co">
+                </div>
+                
+                <div class="settings-group">
+                    <label class="settings-label">Supabase Anon Key</label>
+                    <input type="password" class="settings-input" id="supabaseKeyInput" placeholder="Enter your Supabase anon key">
+                </div>
+                
+                <div class="settings-group">
+                    <label class="settings-label">System Prompt</label>
+                    <textarea class="settings-input" id="systemPromptInput" rows="4" placeholder="Enter system prompt to train the bot on specific topics..."></textarea>
+                </div>
+                
+                <hr style="margin: 20px 0; border: 1px solid var(--border-gray);">
+            </div>
+            
+            <!-- User Information (visible to all users) -->
             <div class="settings-group">
-                <label class="settings-label">User ID</label>
-                <input type="text" class="settings-input" id="userIdInput" placeholder="Enter your user ID">
+                <label class="settings-label">User Information</label>
+                <div class="info-display">
+                    <div class="info-item">
+                        <span class="info-label">User ID:</span>
+                        <span class="info-value" id="displayUserId"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Session ID:</span>
+                        <span class="info-value" id="displaySessionId"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Messages in History:</span>
+                        <span class="info-value" id="displayHistoryCount"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Database Status:</span>
+                        <span class="info-value" id="displayDbStatus"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">AI Service:</span>
+                        <span class="info-value" id="displayAiStatus"></span>
+                    </div>
+                </div>
             </div>
             
             <div class="settings-group">
-                <label class="settings-label">System Prompt (Topic Training)</label>
-                <textarea class="settings-input" id="systemPromptInput" rows="4" placeholder="Enter system prompt to train the bot on specific topics..."></textarea>
+                <button class="settings-btn-modal clear" id="clearHistoryBtn" type="button">Clear Chat History</button>
             </div>
             
             <div class="settings-buttons">
-                <button class="settings-btn-modal cancel" id="cancelSettings">Cancel</button>
-                <button class="settings-btn-modal save" id="saveSettingsBtn">Save</button>
+                <button class="settings-btn-modal cancel" id="cancelSettings">Close</button>
+                <button class="settings-btn-modal save" id="saveSettingsBtn" style="display: none;">Save Configuration</button>
             </div>
         </div>
     </div>
 
     <script>
-    // Configuration - placeholders will be replaced by GitHub Actions
+    // Configuration - Replace these with your actual values or set via localStorage
     const CONFIG = {
-        GEMINI_API_KEY: 'PLACEHOLDER_GEMINI_KEY',
-        SUPABASE_URL: 'PLACEHOLDER_SUPABASE_URL',
-        SUPABASE_ANON_KEY: 'PLACEHOLDER_SUPABASE_KEY',
+        GEMINI_API_KEY: localStorage.getItem('GEMINI_API_KEY') || 'PLACEHOLDER_GEMINI_KEY',
+        SUPABASE_URL: localStorage.getItem('SUPABASE_URL') || 'PLACEHOLDER_SUPABASE_URL',
+        SUPABASE_ANON_KEY: localStorage.getItem('SUPABASE_ANON_KEY') || 'PLACEHOLDER_SUPABASE_KEY',
         DEFAULT_SYSTEM_PROMPT: 'You are Elle, a specialized gut health assistant for the Gutty app. You help users with digestive health questions, gut microbiome information, probiotic and prebiotic guidance, IBS, IBD, and digestive disorder support, and nutrition for gut health. Always be friendly, supportive, and remind users to consult healthcare professionals for serious issues.',
         BOT_NAME: 'Elle',
         BOT_AVATAR: '🤖'
@@ -818,6 +924,7 @@
                     
                     console.log('✅ Chat history loaded successfully');
                     updateDebugInfo();
+        updateInfoDisplay();
                 }
             } else {
                 const errorText = await response.text();
@@ -964,11 +1071,66 @@
         }
     }
 
+    // Check if properly configured
+    function isConfigured() {
+        return CONFIG.GEMINI_API_KEY && 
+               CONFIG.GEMINI_API_KEY !== 'PLACEHOLDER_GEMINI_KEY' && 
+               CONFIG.GEMINI_API_KEY.length > 30;
+    }
+
+    // Update info display
+    function updateInfoDisplay() {
+        document.getElementById('displayUserId').textContent = userId.substring(0, 20) + '...';
+        document.getElementById('displaySessionId').textContent = sessionId.substring(0, 20) + '...';
+        document.getElementById('displayHistoryCount').textContent = chatHistory.length;
+        
+        // Database status
+        const dbConfigured = CONFIG.SUPABASE_URL && CONFIG.SUPABASE_URL !== 'PLACEHOLDER_SUPABASE_URL';
+        const dbStatusEl = document.getElementById('displayDbStatus');
+        if (dbConfigured) {
+            dbStatusEl.textContent = 'Connected';
+            dbStatusEl.className = 'info-value status-connected';
+        } else {
+            dbStatusEl.textContent = 'Not Configured';
+            dbStatusEl.className = 'info-value status-not-configured';
+        }
+        
+        // AI service status
+        const aiConfigured = isConfigured();
+        const aiStatusEl = document.getElementById('displayAiStatus');
+        if (aiConfigured) {
+            aiStatusEl.textContent = 'Ready';
+            aiStatusEl.className = 'info-value status-configured';
+        } else {
+            aiStatusEl.textContent = 'Not Configured';
+            aiStatusEl.className = 'info-value status-not-configured';
+        }
+    }
+
     // Settings functions
     function openSettings() {
         document.getElementById('settingsModal').classList.add('active');
-        document.getElementById('userIdInput').value = userId;
-        document.getElementById('systemPromptInput').value = systemPrompt;
+        
+        // Show admin settings only for admin users
+        const urlParams = new URLSearchParams(window.location.search);
+        const isAdmin = urlParams.get('admin') === 'true';
+        const adminSettings = document.getElementById('adminSettings');
+        const saveBtn = document.getElementById('saveSettingsBtn');
+        
+        if (isAdmin) {
+            adminSettings.style.display = 'block';
+            saveBtn.style.display = 'block';
+            document.getElementById('geminiKeyInput').value = CONFIG.GEMINI_API_KEY !== 'PLACEHOLDER_GEMINI_KEY' ? CONFIG.GEMINI_API_KEY : '';
+            document.getElementById('supabaseUrlInput').value = CONFIG.SUPABASE_URL !== 'PLACEHOLDER_SUPABASE_URL' ? CONFIG.SUPABASE_URL : '';
+            document.getElementById('supabaseKeyInput').value = CONFIG.SUPABASE_ANON_KEY !== 'PLACEHOLDER_SUPABASE_KEY' ? CONFIG.SUPABASE_ANON_KEY : '';
+            document.getElementById('systemPromptInput').value = systemPrompt;
+        } else {
+            adminSettings.style.display = 'none';
+            saveBtn.style.display = 'none';
+        }
+        
+        // Update info display
+        updateInfoDisplay();
     }
 
     function closeSettings() {
@@ -976,26 +1138,54 @@
     }
 
     function saveSettings() {
-        const newUserId = document.getElementById('userIdInput').value || generateUserId();
-        const newSystemPrompt = document.getElementById('systemPromptInput').value || CONFIG.DEFAULT_SYSTEM_PROMPT;
+        const urlParams = new URLSearchParams(window.location.search);
+        const isAdmin = urlParams.get('admin') === 'true';
         
-        // Check if user ID changed
-        const userIdChanged = newUserId !== userId;
+        if (isAdmin) {
+            const newGeminiKey = document.getElementById('geminiKeyInput').value;
+            const newSupabaseUrl = document.getElementById('supabaseUrlInput').value;
+            const newSupabaseKey = document.getElementById('supabaseKeyInput').value;
+            const newSystemPrompt = document.getElementById('systemPromptInput').value || CONFIG.DEFAULT_SYSTEM_PROMPT;
+            
+            // Update configuration
+            if (newGeminiKey) {
+                CONFIG.GEMINI_API_KEY = newGeminiKey;
+                localStorage.setItem('GEMINI_API_KEY', newGeminiKey);
+            }
+            
+            if (newSupabaseUrl) {
+                CONFIG.SUPABASE_URL = newSupabaseUrl;
+                localStorage.setItem('SUPABASE_URL', newSupabaseUrl);
+            }
+            
+            if (newSupabaseKey) {
+                CONFIG.SUPABASE_ANON_KEY = newSupabaseKey;
+                localStorage.setItem('SUPABASE_ANON_KEY', newSupabaseKey);
+            }
+            
+            systemPrompt = newSystemPrompt;
+            localStorage.setItem('systemPrompt', systemPrompt);
+            
+            closeSettings();
+            
+            // Test connections after saving
+            testSupabaseConnection();
+            showStatus('Configuration updated successfully', 'success');
+        } else {
+            closeSettings();
+        }
         
-        userId = newUserId;
-        systemPrompt = newSystemPrompt;
-        
-        localStorage.setItem('userId', userId);
-        localStorage.setItem('systemPrompt', systemPrompt);
-        
-        closeSettings();
-        
-        // If user ID changed, reset chat and load new history
-        if (userIdChanged) {
+        updateDebugInfo();
+        updateInfoDisplay();
+    }
+
+    // Clear chat history function
+    function clearChatHistory() {
+        if (confirm('Are you sure you want to clear all chat history? This cannot be undone.')) {
             chatHistory = [];
             sessionId = generateSessionId();
             
-            // Clear chat messages except welcome
+            // Reset UI to welcome message only
             const chatMessages = document.getElementById('chatMessages');
             chatMessages.innerHTML = `
                 <div class="message bot">
@@ -1006,14 +1196,11 @@
                 </div>
             `;
             
-            // Load history for new user
-            loadChatHistory();
-            showStatus('Settings saved and chat reset', 'success');
-        } else {
-            showStatus('Settings saved', 'success');
+            showStatus('Chat history cleared', 'success');
+            updateDebugInfo();
+            updateInfoDisplay();
+            closeSettings();
         }
-        
-        updateDebugInfo();
     }
 
     // Clear chat history
@@ -1049,6 +1236,7 @@
         document.getElementById('sendBtn').addEventListener('click', sendMessage);
         document.getElementById('cancelSettings').addEventListener('click', closeSettings);
         document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+        document.getElementById('clearHistoryBtn').addEventListener('click', clearChatHistory);
         
         // Handle Adalo userId parameter (IMPORTANT for Adalo integration)
         const urlParams = new URLSearchParams(window.location.search);
@@ -1060,13 +1248,21 @@
             console.log('🔗 Using Adalo userId:', userId);
         }
         
+        // Always show settings button for users to see their info
+        const settingsBtn = document.getElementById('settingsButton');
+        settingsBtn.style.display = 'block';
+        settingsBtn.addEventListener('click', openSettings);
+        
         // Check for admin mode and debug mode
         if (urlParams.get('admin') === 'true') {
-            const settingsBtn = document.getElementById('settingsButton');
-            settingsBtn.style.display = 'block';
-            settingsBtn.addEventListener('click', openSettings);
             isDebugMode = true;
             updateDebugInfo();
+            
+            // Auto-open settings if not configured (admin only)
+            if (!isConfigured()) {
+                showStatus('Configuration required - opening settings', 'warning', 2000);
+                setTimeout(() => openSettings(), 1000);
+            }
         }
         
         if (urlParams.get('debug') === 'true') {
