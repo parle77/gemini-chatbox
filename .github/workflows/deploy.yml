@@ -1,25 +1,90 @@
-- name: Debug - Check file contents before replacement
-  run: |
-    echo "=== BEFORE REPLACEMENT ==="
-    grep -n "PLACEHOLDER" index.html || echo "No placeholders found"
-    echo "=== ENVIRONMENT VARIABLES ==="
-    echo "GEMINI_KEY length: ${#GEMINI_KEY}"
-    echo "SUPABASE_URL_SECRET length: ${#SUPABASE_URL_SECRET}"
-    echo "SUPABASE_KEY_SECRET length: ${#SUPABASE_KEY_SECRET}"
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
     
-- name: Replace placeholders with secrets
-  env:
-    GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
-    SUPABASE_URL_SECRET: ${{ secrets.SUPABASE_URL }}
-    SUPABASE_KEY_SECRET: ${{ secrets.SUPABASE_ANON_KEY }}
-  run: |
-    # Use perl for safe replacement
-    perl -i -pe "s/PLACEHOLDER_GEMINI_KEY/\$ENV{GEMINI_KEY}/g" index.html
-    perl -i -pe "s/PLACEHOLDER_SUPABASE_URL/\$ENV{SUPABASE_URL_SECRET}/g" index.html  
-    perl -i -pe "s/PLACEHOLDER_SUPABASE_KEY/\$ENV{SUPABASE_KEY_SECRET}/g" index.html
-    echo "✅ Secrets replaced successfully"
-    
-- name: Debug - Check file contents after replacement
-  run: |
-    echo "=== AFTER REPLACEMENT ==="
-    grep -n "PLACEHOLDER\|CONFIG" index.html | head -10
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Debug - Check file contents before replacement
+      run: |
+        echo "=== CHECKING FOR PLACEHOLDERS ==="
+        grep -n "PLACEHOLDER" index.html || echo "❌ No placeholders found in index.html"
+        echo ""
+        echo "=== CHECKING ENVIRONMENT VARIABLES ==="
+        echo "GEMINI_KEY exists: $([[ -n "${{ secrets.GEMINI_API_KEY }}" ]] && echo "✅ Yes" || echo "❌ No")"
+        echo "SUPABASE_URL exists: $([[ -n "${{ secrets.SUPABASE_URL }}" ]] && echo "✅ Yes" || echo "❌ No")"
+        echo "SUPABASE_KEY exists: $([[ -n "${{ secrets.SUPABASE_ANON_KEY }}" ]] && echo "✅ Yes" || echo "❌ No")"
+        echo ""
+        echo "GEMINI_KEY length: ${{ secrets.GEMINI_API_KEY != '' && 'Set' || 'Not Set' }}"
+        echo "SUPABASE_URL length: ${{ secrets.SUPABASE_URL != '' && 'Set' || 'Not Set' }}"
+        echo "SUPABASE_KEY length: ${{ secrets.SUPABASE_ANON_KEY != '' && 'Set' || 'Not Set' }}"
+        
+    - name: Replace placeholders with secrets
+      env:
+        GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
+        SUPABASE_URL_SECRET: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_KEY_SECRET: ${{ secrets.SUPABASE_ANON_KEY }}
+      run: |
+        echo "🔄 Starting placeholder replacement..."
+        
+        # Check if environment variables are set
+        if [[ -z "$GEMINI_KEY" ]]; then
+          echo "❌ GEMINI_KEY is empty"
+          exit 1
+        fi
+        
+        if [[ -z "$SUPABASE_URL_SECRET" ]]; then
+          echo "❌ SUPABASE_URL_SECRET is empty"
+          exit 1
+        fi
+        
+        if [[ -z "$SUPABASE_KEY_SECRET" ]]; then
+          echo "❌ SUPABASE_KEY_SECRET is empty"
+          exit 1
+        fi
+        
+        echo "✅ All environment variables are set"
+        
+        # Replace placeholders using sed (more reliable than perl)
+        sed -i "s|PLACEHOLDER_GEMINI_KEY|${GEMINI_KEY}|g" index.html
+        sed -i "s|PLACEHOLDER_SUPABASE_URL|${SUPABASE_URL_SECRET}|g" index.html
+        sed -i "s|PLACEHOLDER_SUPABASE_KEY|${SUPABASE_KEY_SECRET}|g" index.html
+        
+        echo "✅ Placeholder replacement completed"
+        
+    - name: Debug - Verify replacement worked
+      run: |
+        echo "=== CHECKING REPLACEMENT RESULTS ==="
+        # Check if any placeholders remain
+        if grep -q "PLACEHOLDER" index.html; then
+          echo "❌ Some placeholders were not replaced:"
+          grep -n "PLACEHOLDER" index.html
+          exit 1
+        else
+          echo "✅ All placeholders successfully replaced"
+        fi
+        
+        # Verify config section looks correct
+        echo ""
+        echo "=== CONFIG SECTION ==="
+        grep -A 10 "const CONFIG" index.html | head -15
+        
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: .
+        force_orphan: true  # Clean deployment
+        
+    - name: Deployment complete
+      run: |
+        echo "🚀 Deployment to GitHub Pages completed successfully!"
+        echo "📱 Your chatbox should be available at: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
