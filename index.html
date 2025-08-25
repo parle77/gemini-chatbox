@@ -516,7 +516,9 @@
     };
     
     console.log('Config loaded: API key is ready');
-    console.log('Supabase configured:', CONFIG.SUPABASE_URL !== 'PLACEHOLDER_SUPABASE_URL' ? 'Yes' : 'No');
+    console.log('Supabase configured:', (CONFIG.SUPABASE_URL && CONFIG.SUPABASE_URL !== 'PLACEHOLDER_SUPABASE_URL' && CONFIG.SUPABASE_URL.startsWith('https://')) ? 'Yes' : 'No');
+    console.log('Supabase URL length:', CONFIG.SUPABASE_URL ? CONFIG.SUPABASE_URL.length : 'undefined');
+    console.log('Supabase Key length:', CONFIG.SUPABASE_ANON_KEY ? CONFIG.SUPABASE_ANON_KEY.length : 'undefined');
 
     // Initialize variables
     let userId = localStorage.getItem('userId') || generateUserId();
@@ -598,12 +600,16 @@
 
     // Save message to Supabase
     async function saveToSupabase(message, sender) {
-        // Check if Supabase is configured
+        // Check if Supabase is configured properly
         if (!CONFIG.SUPABASE_URL || 
             CONFIG.SUPABASE_URL === 'PLACEHOLDER_SUPABASE_URL' ||
+            !CONFIG.SUPABASE_URL.startsWith('https://') ||
             !CONFIG.SUPABASE_ANON_KEY ||
-            CONFIG.SUPABASE_ANON_KEY === 'PLACEHOLDER_SUPABASE_KEY') {
+            CONFIG.SUPABASE_ANON_KEY === 'PLACEHOLDER_SUPABASE_KEY' ||
+            CONFIG.SUPABASE_ANON_KEY.length < 20) {
             console.log('Supabase not configured - messages will not be saved');
+            console.log('Debug - URL:', CONFIG.SUPABASE_URL ? 'Set (' + CONFIG.SUPABASE_URL.substring(0, 20) + '...)' : 'Not set');
+            console.log('Debug - Key:', CONFIG.SUPABASE_ANON_KEY ? 'Set (' + CONFIG.SUPABASE_ANON_KEY.length + ' chars)' : 'Not set');
             return;
         }
 
@@ -634,18 +640,30 @@
             }
         } catch (error) {
             console.error('Supabase save error:', error);
+            // Show more specific error information
+            if (error.message.includes('404')) {
+                console.error('❌ Supabase table "chat_messages" not found. Please create the table.');
+            } else if (error.message.includes('401') || error.message.includes('403')) {
+                console.error('❌ Supabase authentication failed. Check your API key.');
+            } else if (error.message.includes('400')) {
+                console.error('❌ Supabase request error. Check your table structure.');
+            }
             // Don't show error to user for save failures, just log it
         }
     }
 
     // Load chat history from Supabase
     async function loadChatHistory() {
-        // Check if Supabase is configured
+        // Check if Supabase is configured properly
         if (!CONFIG.SUPABASE_URL || 
             CONFIG.SUPABASE_URL === 'PLACEHOLDER_SUPABASE_URL' ||
+            !CONFIG.SUPABASE_URL.startsWith('https://') ||
             !CONFIG.SUPABASE_ANON_KEY ||
-            CONFIG.SUPABASE_ANON_KEY === 'PLACEHOLDER_SUPABASE_KEY') {
+            CONFIG.SUPABASE_ANON_KEY === 'PLACEHOLDER_SUPABASE_KEY' ||
+            CONFIG.SUPABASE_ANON_KEY.length < 20) {
             console.log('Supabase not configured - chat history will not be loaded');
+            console.log('Debug - URL valid:', CONFIG.SUPABASE_URL && CONFIG.SUPABASE_URL.startsWith('https://'));
+            console.log('Debug - Key valid:', CONFIG.SUPABASE_ANON_KEY && CONFIG.SUPABASE_ANON_KEY.length > 20);
             return;
         }
 
