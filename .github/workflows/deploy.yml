@@ -1,29 +1,25 @@
-name: Deploy to GitHub Pages
-on:
-  push:
-    branches: [ main ]
-
-jobs: 
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v3
-      
-    - name: Replace placeholders with secrets
-      env:
-        GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
-        SUPABASE_URL_SECRET: ${{ secrets.SUPABASE_URL }}
-        SUPABASE_KEY_SECRET: ${{ secrets.SUPABASE_ANON_KEY }}
-      run: |
-        # Use perl for safe replacement
-        perl -i -pe "s/PLACEHOLDER_GEMINI_KEY/\$ENV{GEMINI_KEY}/g" index.html
-        perl -i -pe "s/PLACEHOLDER_SUPABASE_URL/\$ENV{SUPABASE_URL_SECRET}/g" index.html  
-        perl -i -pe "s/PLACEHOLDER_SUPABASE_KEY/\$ENV{SUPABASE_KEY_SECRET}/g" index.html
-        echo "✅ Secrets replaced successfully"
-        
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: .
+- name: Debug - Check file contents before replacement
+  run: |
+    echo "=== BEFORE REPLACEMENT ==="
+    grep -n "PLACEHOLDER" index.html || echo "No placeholders found"
+    echo "=== ENVIRONMENT VARIABLES ==="
+    echo "GEMINI_KEY length: ${#GEMINI_KEY}"
+    echo "SUPABASE_URL_SECRET length: ${#SUPABASE_URL_SECRET}"
+    echo "SUPABASE_KEY_SECRET length: ${#SUPABASE_KEY_SECRET}"
+    
+- name: Replace placeholders with secrets
+  env:
+    GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
+    SUPABASE_URL_SECRET: ${{ secrets.SUPABASE_URL }}
+    SUPABASE_KEY_SECRET: ${{ secrets.SUPABASE_ANON_KEY }}
+  run: |
+    # Use perl for safe replacement
+    perl -i -pe "s/PLACEHOLDER_GEMINI_KEY/\$ENV{GEMINI_KEY}/g" index.html
+    perl -i -pe "s/PLACEHOLDER_SUPABASE_URL/\$ENV{SUPABASE_URL_SECRET}/g" index.html  
+    perl -i -pe "s/PLACEHOLDER_SUPABASE_KEY/\$ENV{SUPABASE_KEY_SECRET}/g" index.html
+    echo "✅ Secrets replaced successfully"
+    
+- name: Debug - Check file contents after replacement
+  run: |
+    echo "=== AFTER REPLACEMENT ==="
+    grep -n "PLACEHOLDER\|CONFIG" index.html | head -10
