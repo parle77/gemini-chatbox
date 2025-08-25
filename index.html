@@ -764,11 +764,20 @@
 
     // Send message
     async function sendMessage() {
+        console.log('🔄 Send message function called');
+        
         const input = document.getElementById('chatInput');
         const sendBtn = document.getElementById('sendBtn');
         const message = input.value.trim();
         
-        if (!message) return;
+        console.log('📝 Message content:', message);
+        
+        if (!message) {
+            console.log('❌ Empty message, returning');
+            return;
+        }
+        
+        console.log('✅ Message is valid, proceeding...');
         
         input.disabled = true;
         sendBtn.disabled = true;
@@ -777,19 +786,25 @@
         input.value = '';
         
         // Save user message to Supabase
+        console.log('💾 Saving user message to Supabase...');
         await saveToSupabase(message, 'user');
         
         toggleTyping(true);
         
         try {
+            console.log('🤖 Calling Gemini API...');
             const botResponse = await callGeminiAPI(message);
+            console.log('✅ Got bot response:', botResponse.substring(0, 50) + '...');
+            
             toggleTyping(false);
             addMessageToUI(botResponse, 'bot');
             
             // Save bot response to Supabase
+            console.log('💾 Saving bot response to Supabase...');
             await saveToSupabase(botResponse, 'bot');
             
         } catch (error) {
+            console.error('❌ Error in sendMessage:', error);
             toggleTyping(false);
             showError('Failed to get response. Please try again.');
         } finally {
