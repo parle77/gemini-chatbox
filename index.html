@@ -521,9 +521,8 @@
     // Initialize variables
     let userId = localStorage.getItem('userId') || generateUserId();
     let sessionId = generateSessionId();
-    let systemPrompt = localStorage.getItem('systemPrompt') || CONFIG.DEFAULT_SYSTEM_PROMPT;
+    let systemPrompt = CONFIG.DEFAULT_SYSTEM_PROMPT;
     let chatHistory = [];
-    let isInitialLoad = true;
 
     // Generate unique IDs
     function generateUserId() {
@@ -546,12 +545,7 @@
     }
 
     // Add message to chat UI
-    function addMessageToUI(message, sender, timestamp = null, isFromHistory = false) {
-        // Skip welcome message if loading from history
-        if (isFromHistory && sender === 'bot' && message.includes('Hello! I\'m Elle')) {
-            return;
-        }
-
+    function addMessageToUI(message, sender, timestamp = null) {
         const chatMessages = document.getElementById('chatMessages');
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${sender}`;
@@ -613,12 +607,11 @@
                 headers: {
                     'Content-Type': 'application/json',
                     'apikey': CONFIG.SUPABASE_ANON_KEY,
-                    'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
-                    'Prefer': 'return=minimal'
+                    'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`
                 },
                 body: JSON.stringify({
-                    user_id: userId,
                     session_id: sessionId,
+                    user_id: userId,
                     message: message,
                     sender: sender,
                     timestamp: new Date().toISOString()
@@ -627,14 +620,13 @@
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('Supabase save error:', response.status, errorText);
+                console.error('Supabase error details:', errorText);
                 throw new Error(`Failed to save to Supabase: ${response.status}`);
             } else {
                 console.log(`✅ Saved ${sender} message to Supabase for user: ${userId}`);
             }
         } catch (error) {
             console.error('Supabase save error:', error);
-            // Don't show error to user for save failures, just log it
         }
     }
 
@@ -664,24 +656,21 @@
                 const messages = await response.json();
                 console.log(`📚 Loading ${messages.length} previous messages for user: ${userId}`);
                 
-                if (messages.length > 0) {
-                    // Clear the initial welcome message if we have history
-                    const chatMessages = document.getElementById('chatMessages');
-                    chatMessages.innerHTML = '';
-                    
-                    // Load previous messages
-                    messages.forEach(msg => {
-                        chatHistory.push({
-                            role: msg.sender === 'user' ? 'user' : 'model',
-                            parts: [{ text: msg.message }]
-                        });
-                        
-                        addMessageToUI(msg.message, msg.sender, new Date(msg.timestamp), true);
+                // Load previous messages into chat history for API context
+                messages.forEach(msg => {
+                    chatHistory.push({
+                        role: msg.sender === 'user' ? 'user' : 'model',
+                        parts: [{ text: msg.message }]
                     });
                     
+                    // Add to UI (skip if it's the same as welcome message)
+                    if (!(msg.sender === 'bot' && msg.message.includes('Hello! I\'m Elle'))) {
+                        addMessageToUI(msg.message, msg.sender, new Date(msg.timestamp));
+                    }
+                });
+                
+                if (messages.length > 0) {
                     console.log('✅ Chat history loaded successfully');
-                } else {
-                    console.log('📝 No previous chat history found for this user');
                 }
             } else {
                 console.error('Failed to load chat history:', response.status);
@@ -755,11 +744,11 @@
         sendBtn.disabled = true;
         
         addMessageToUI(message, 'user');
-        input.value = '';
         
         // Save user message to Supabase
         await saveToSupabase(message, 'user');
         
+        input.value = '';
         toggleTyping(true);
         
         try {
@@ -800,26 +789,15 @@
     }
 
     function saveSettings() {
-        const newUserId = document.getElementById('userIdInput').value.trim() || generateUserId();
-        const newSystemPrompt = document.getElementById('systemPromptInput').value.trim() || CONFIG.DEFAULT_SYSTEM_PROMPT;
+        userId = document.getElementById('userIdInput').value || generateUserId();
+        systemPrompt = document.getElementById('systemPromptInput').value || systemPrompt;
         
-        // Only reset if user ID changed
-        if (newUserId !== userId) {
-            userId = newUserId;
-            localStorage.setItem('userId', userId);
-            sessionId = generateSessionId();
-            chatHistory = [];
-            
-            // Clear chat and reload history for new user
-            const chatMessages = document.getElementById('chatMessages');
-            chatMessages.innerHTML = '<div class="message bot"><div class="message-content"><div>Hello! I\'m Elle, your gut health assistant. How can I help you today?</div><div class="message-time"></div></div></div>';
-            loadChatHistory();
-        }
-        
-        systemPrompt = newSystemPrompt;
+        localStorage.setItem('userId', userId);
         localStorage.setItem('systemPrompt', systemPrompt);
         
         closeSettings();
+        chatHistory = [];
+        sessionId = generateSessionId();
     }
 
     // Initialize when page loads
@@ -835,8 +813,8 @@
         // Handle Adalo userId parameter (IMPORTANT for Adalo integration)
         const urlParams = new URLSearchParams(window.location.search);
         const adaloUserId = urlParams.get('userId');
-        if (adaloUserId && adaloUserId.trim()) {
-            userId = adaloUserId.trim();
+        if (adaloUserId) {
+            userId = adaloUserId;
             localStorage.setItem('userId', userId);
             sessionId = generateSessionId(); // New session for this user
             console.log('🔗 Using Adalo userId:', userId);
@@ -851,27 +829,16 @@
             settingsBtn.style.display = 'block';
             settingsBtn.addEventListener('click', openSettings);
         }
-        
-        // Focus input
-        document.getElementById('chatInput').focus();
     });
 
     // Handle messages from Adalo (additional integration)
     window.addEventListener('message', function(event) {
-        if (event.data && event.data.type === 'ADALO_USER_ID' && event.data.userId) {
-            const newUserId = event.data.userId.trim();
-            if (newUserId !== userId) {
-                userId = newUserId;
-                localStorage.setItem('userId', userId);
-                sessionId = generateSessionId();
-                chatHistory = [];
-                console.log('📱 Received Adalo userId via postMessage:', userId);
-                
-                // Clear and reload chat history
-                const chatMessages = document.getElementById('chatMessages');
-                chatMessages.innerHTML = '<div class="message bot"><div class="message-content"><div>Hello! I\'m Elle, your gut health assistant. How can I help you today?</div><div class="message-time"></div></div></div>';
-                loadChatHistory();
-            }
+        if (event.data && event.data.type === 'ADALO_USER_ID') {
+            userId = event.data.userId;
+            localStorage.setItem('userId', userId);
+            sessionId = generateSessionId();
+            console.log('📱 Received Adalo userId via postMessage:', userId);
+            loadChatHistory(); // Reload history for new user
         }
     });
 </script>
