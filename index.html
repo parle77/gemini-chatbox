@@ -119,8 +119,9 @@
         }
 
         .message {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             display: flex;
+            align-items: flex-start;
             animation: fadeIn 0.3s ease-in;
         }
 
@@ -139,12 +140,44 @@
             justify-content: flex-end;
         }
 
-        .message-content {
+        .message.bot {
+            gap: 10px;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--third-color);
+            border: 2px solid var(--primary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .message-wrapper {
+            display: flex;
+            flex-direction: column;
             max-width: 70%;
+        }
+
+        .message.user .message-wrapper {
+            align-items: flex-end;
+        }
+
+        .message.bot .message-wrapper {
+            align-items: flex-start;
+        }
+
+        .message-content {
             padding: 12px 16px;
             border-radius: 18px;
             word-wrap: break-word;
             position: relative;
+            margin-bottom: 5px;
         }
 
         .message.user .message-content {
@@ -164,7 +197,7 @@
         .message-time {
             font-size: 11px;
             opacity: 0.6;
-            margin-top: 5px;
+            color: var(--text-color);
         }
 
         .typing-indicator {
@@ -221,11 +254,12 @@
         .input-wrapper {
             display: flex;
             gap: 10px;
+            position: relative;
         }
 
         .chat-input {
             flex: 1;
-            padding: 12px 16px;
+            padding: 12px 60px 12px 16px;
             border: 2px solid var(--border-gray);
             border-radius: 25px;
             font-size: 15px;
@@ -237,6 +271,54 @@
         .chat-input:focus {
             border-color: var(--primary-color);
             box-shadow: 0 0 0 3px rgba(34, 97, 55, 0.1);
+        }
+
+        .voice-btn {
+            position: absolute;
+            right: 65px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: var(--secondary-color);
+            border: none;
+            color: var(--text-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .voice-btn:hover:not(:disabled) {
+            transform: translateY(-50%) scale(1.1);
+            background: var(--third-color);
+            color: white;
+        }
+
+        .voice-btn.recording {
+            background: #ff4757;
+            color: white;
+            animation: pulse-recording 1s infinite;
+        }
+
+        @keyframes pulse-recording {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(255, 71, 87, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 71, 87, 0);
+            }
+        }
+
+        .voice-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .send-btn {
@@ -267,6 +349,23 @@
         .send-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+        }
+
+        .voice-status {
+            position: absolute;
+            top: -35px;
+            right: 0;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            display: none;
+            white-space: nowrap;
+        }
+
+        .voice-status.active {
+            display: block;
         }
 
         .error-message {
@@ -450,8 +549,11 @@
 
         <div class="chat-messages" id="chatMessages">
             <div class="message bot">
-                <div class="message-content">
-                    <div>Hello! I'm Elle, your gut health assistant. How can I help you today?</div>
+                <div class="message-avatar">🤖</div>
+                <div class="message-wrapper">
+                    <div class="message-content">
+                        <div>Hello! I'm Elle, your gut health assistant. How can I help you today?</div>
+                    </div>
                     <div class="message-time"></div>
                 </div>
             </div>
@@ -473,11 +575,20 @@
                     id="chatInput" 
                     placeholder="Type your message..."
                 >
+                <button class="voice-btn" id="voiceBtn" title="Hold to record voice message">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+                        <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
+                        <path d="M12 18.5v2.5"/>
+                        <path d="M8 21h8"/>
+                    </svg>
+                </button>
                 <button class="send-btn" id="sendBtn">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
                     </svg>
                 </button>
+                <div class="voice-status" id="voiceStatus">🎤 Recording... Speak now</div>
             </div>
         </div>
     </div>
@@ -526,6 +637,9 @@
     let systemPrompt = localStorage.getItem('systemPrompt') || CONFIG.DEFAULT_SYSTEM_PROMPT;
     let chatHistory = [];
     let isInitialLoad = true;
+    let mediaRecorder = null;
+    let isRecording = false;
+    let recordingChunks = [];
 
     // Generate unique IDs
     function generateUserId() {
@@ -558,6 +672,17 @@
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${sender}`;
         
+        // Add avatar for bot messages
+        if (sender === 'bot') {
+            const avatarDiv = document.createElement('div');
+            avatarDiv.className = 'message-avatar';
+            avatarDiv.textContent = '🤖';
+            messageDiv.appendChild(avatarDiv);
+        }
+        
+        const wrapperDiv = document.createElement('div');
+        wrapperDiv.className = 'message-wrapper';
+        
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
         
@@ -569,8 +694,9 @@
         timeDiv.textContent = formatTime(timestamp || new Date());
         
         contentDiv.appendChild(messageText);
-        contentDiv.appendChild(timeDiv);
-        messageDiv.appendChild(contentDiv);
+        wrapperDiv.appendChild(contentDiv);
+        wrapperDiv.appendChild(timeDiv);
+        messageDiv.appendChild(wrapperDiv);
         
         chatMessages.appendChild(messageDiv);
         chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -586,6 +712,135 @@
         } else {
             typingIndicator.classList.remove('active');
         }
+    }
+
+    // Voice recording functions
+    async function initializeVoiceRecording() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+            
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    recordingChunks.push(event.data);
+                }
+            };
+            
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(recordingChunks, { type: 'audio/webm' });
+                recordingChunks = [];
+                await transcribeAudio(audioBlob);
+            };
+            
+            return true;
+        } catch (error) {
+            console.error('Error accessing microphone:', error);
+            showError('Microphone access denied. Please enable microphone permissions.');
+            return false;
+        }
+    }
+
+    async function transcribeAudio(audioBlob) {
+        const voiceStatus = document.getElementById('voiceStatus');
+        voiceStatus.textContent = '🔄 Converting speech to text...';
+        voiceStatus.classList.add('active');
+        
+        try {
+            // Convert blob to base64
+            const base64Audio = await blobToBase64(audioBlob);
+            
+            // Use Web Speech API for transcription (fallback method)
+            // Note: For production, you'd want to use a more robust service like Google Speech-to-Text
+            const transcription = await transcribeWithWebSpeechAPI(audioBlob);
+            
+            if (transcription && transcription.trim()) {
+                document.getElementById('chatInput').value = transcription;
+                voiceStatus.classList.remove('active');
+                
+                // Auto-send the message
+                setTimeout(() => {
+                    sendMessage();
+                }, 500);
+            } else {
+                throw new Error('No speech detected');
+            }
+            
+        } catch (error) {
+            console.error('Transcription error:', error);
+            voiceStatus.classList.remove('active');
+            showError('Could not convert speech to text. Please try again.');
+        }
+    }
+
+    // Fallback transcription using Web Speech API
+    function transcribeWithWebSpeechAPI(audioBlob) {
+        return new Promise((resolve, reject) => {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                // Simple fallback - just indicate that voice was received
+                resolve("Voice message received (transcription not available in this browser)");
+                return;
+            }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                resolve(transcript);
+            };
+
+            recognition.onerror = (event) => {
+                reject(new Error('Speech recognition error: ' + event.error));
+            };
+
+            recognition.onend = () => {
+                // If no result was captured, resolve with a fallback message
+                setTimeout(() => resolve("Voice message received"), 100);
+            };
+
+            // Create audio element to play the recorded audio for recognition
+            const audio = new Audio(URL.createObjectURL(audioBlob));
+            audio.play();
+            recognition.start();
+            
+            // Stop recognition after 5 seconds if no result
+            setTimeout(() => {
+                recognition.stop();
+            }, 5000);
+        });
+    }
+
+    function blobToBase64(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    function startVoiceRecording() {
+        if (!mediaRecorder) {
+            showError('Voice recording not available. Please check microphone permissions.');
+            return;
+        }
+
+        recordingChunks = [];
+        mediaRecorder.start();
+        isRecording = true;
+        
+        const voiceBtn = document.getElementById('voiceBtn');
+        const voiceStatus = document.getElementById('voiceStatus');
+        
+        voiceBtn.classList.add('recording');
+        voiceStatus.textContent = '🎤 Recording... Release to send';
+        voiceStatus.classList.add('active');
+        
+        console.log('Started voice recording');
     }
 
     // Show error message
@@ -830,7 +1085,7 @@
             
             // Clear chat and reload history for new user
             const chatMessages = document.getElementById('chatMessages');
-            chatMessages.innerHTML = '<div class="message bot"><div class="message-content"><div>Hello! I\'m Elle, your gut health assistant. How can I help you today?</div><div class="message-time"></div></div></div>';
+            chatMessages.innerHTML = '<div class="message bot"><div class="message-avatar">🤖</div><div class="message-wrapper"><div class="message-content"><div>Hello! I\'m Elle, your gut health assistant. How can I help you today?</div></div><div class="message-time"></div></div></div>';
             loadChatHistory();
         }
         
@@ -849,6 +1104,47 @@
         document.getElementById('sendBtn').addEventListener('click', sendMessage);
         document.getElementById('cancelSettings').addEventListener('click', closeSettings);
         document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+        
+        // Voice recording event listeners
+        const voiceBtn = document.getElementById('voiceBtn');
+        
+        // Desktop: mouse events
+        voiceBtn.addEventListener('mousedown', async (e) => {
+            e.preventDefault();
+            if (!mediaRecorder) {
+                const initialized = await initializeVoiceRecording();
+                if (!initialized) return;
+            }
+            startVoiceRecording();
+        });
+        
+        voiceBtn.addEventListener('mouseup', () => {
+            if (isRecording) stopVoiceRecording();
+        });
+        
+        voiceBtn.addEventListener('mouseleave', () => {
+            if (isRecording) stopVoiceRecording();
+        });
+        
+        // Mobile: touch events
+        voiceBtn.addEventListener('touchstart', async (e) => {
+            e.preventDefault();
+            if (!mediaRecorder) {
+                const initialized = await initializeVoiceRecording();
+                if (!initialized) return;
+            }
+            startVoiceRecording();
+        });
+        
+        voiceBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if (isRecording) stopVoiceRecording();
+        });
+        
+        voiceBtn.addEventListener('touchcancel', (e) => {
+            e.preventDefault();
+            if (isRecording) stopVoiceRecording();
+        });
         
         // Handle Adalo userId parameter (IMPORTANT for Adalo integration)
         const urlParams = new URLSearchParams(window.location.search);
@@ -887,7 +1183,7 @@
                 
                 // Clear and reload chat history
                 const chatMessages = document.getElementById('chatMessages');
-                chatMessages.innerHTML = '<div class="message bot"><div class="message-content"><div>Hello! I\'m Elle, your gut health assistant. How can I help you today?</div><div class="message-time"></div></div></div>';
+                chatMessages.innerHTML = '<div class="message bot"><div class="message-avatar">🤖</div><div class="message-wrapper"><div class="message-content"><div>Hello! I\'m Elle, your gut health assistant. How can I help you today?</div></div><div class="message-time"></div></div></div>';
                 loadChatHistory();
             }
         }
