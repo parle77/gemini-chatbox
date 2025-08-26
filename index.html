@@ -575,7 +575,7 @@
                     id="chatInput" 
                     placeholder="Type your message..."
                 >
-                <button class="voice-btn" id="voiceBtn" title="Hold to record voice message">
+                <button class="voice-btn" id="voiceBtn" title="Click to use voice input">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
                         <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
@@ -588,7 +588,7 @@
                         <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
                     </svg>
                 </button>
-                <div class="voice-status" id="voiceStatus">🎤 Recording... Speak now</div>
+                <div class="voice-status" id="voiceStatus">🎤 Listening... Speak now</div>
             </div>
         </div>
     </div>
@@ -637,9 +637,8 @@
     let systemPrompt = localStorage.getItem('systemPrompt') || CONFIG.DEFAULT_SYSTEM_PROMPT;
     let chatHistory = [];
     let isInitialLoad = true;
-    let mediaRecorder = null;
-    let isRecording = false;
-    let recordingChunks = [];
+    let recognition = null;
+    let isListening = false;
 
     // Generate unique IDs
     function generateUserId() {
@@ -1105,45 +1104,13 @@
         document.getElementById('cancelSettings').addEventListener('click', closeSettings);
         document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
         
-        // Voice recording event listeners
+        // Voice recognition event listeners
         const voiceBtn = document.getElementById('voiceBtn');
         
-        // Desktop: mouse events
-        voiceBtn.addEventListener('mousedown', async (e) => {
+        // Single click to start/stop speech recognition
+        voiceBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            if (!mediaRecorder) {
-                const initialized = await initializeVoiceRecording();
-                if (!initialized) return;
-            }
-            startVoiceRecording();
-        });
-        
-        voiceBtn.addEventListener('mouseup', () => {
-            if (isRecording) stopVoiceRecording();
-        });
-        
-        voiceBtn.addEventListener('mouseleave', () => {
-            if (isRecording) stopVoiceRecording();
-        });
-        
-        // Mobile: touch events
-        voiceBtn.addEventListener('touchstart', async (e) => {
-            e.preventDefault();
-            if (!mediaRecorder) {
-                const initialized = await initializeVoiceRecording();
-                if (!initialized) return;
-            }
-            startVoiceRecording();
-        });
-        
-        voiceBtn.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            if (isRecording) stopVoiceRecording();
-        });
-        
-        voiceBtn.addEventListener('touchcancel', (e) => {
-            e.preventDefault();
-            if (isRecording) stopVoiceRecording();
+            toggleSpeechRecognition();
         });
         
         // Handle Adalo userId parameter (IMPORTANT for Adalo integration)
