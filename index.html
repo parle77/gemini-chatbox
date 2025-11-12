@@ -35,7 +35,6 @@
             overflow: hidden;
         }
 
-        /* Animated background */
         body::before {
             content: '';
             position: fixed;
@@ -92,6 +91,11 @@
             animation: gradient-shift 3s ease infinite;
         }
 
+        @keyframes gradient-shift {
+            0%, 100% { background-position: 0% center; }
+            50% { background-position: 100% center; }
+        }
+
         .bot-avatar {
             width: 50px;
             height: 50px;
@@ -133,11 +137,6 @@
             margin-bottom: 4px;
             letter-spacing: -0.8px;
             animation: gradient-shift 3s ease infinite;
-        }
-
-        @keyframes gradient-shift {
-            0%, 100% { background-position: 0% center; }
-            50% { background-position: 100% center; }
         }
 
         .bot-status {
@@ -222,44 +221,15 @@
 
         .message.bot .message-content {
             background: var(--surface-light);
-            background: linear-gradient(135deg, #226137 0%, #4a9d6a 25%, #7bc99d 50%, #FCB1A8 75%, #ffd4cb 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
             border: 1px solid var(--border-color);
             border-bottom-left-radius: 6px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-            position: relative;
-        }
-
-        .message.bot .message-content::before {
-            content: attr(data-text);
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: var(--surface-light);
-            z-index: -1;
-            padding: 14px 18px;
-            border-radius: 20px;
-            border-bottom-left-radius: 6px;
         }
 
         .message.user .message-content {
             background: linear-gradient(135deg, #FCB1A8 0%, #ffc9be 50%, #ffd4cb 100%);
-            color: var(--text-primary);
             border-bottom-right-radius: 6px;
             box-shadow: 0 10px 25px rgba(252, 177, 168, 0.35);
-            font-weight: 500;
-        }
-
-        .message.user .message-content * {
-            background: linear-gradient(135deg, #226137 0%, #4a9d6a 25%, #7bc99d 50%, #FCB1A8 75%, #ffd4cb 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            font-weight: 600;
         }
 
         .message-time {
@@ -429,7 +399,6 @@
             display: block;
         }
 
-        /* Scrollbar */
         .chat-messages::-webkit-scrollbar {
             width: 8px;
         }
@@ -447,7 +416,6 @@
             background: linear-gradient(135deg, #2d7d4a, #226137);
         }
 
-        /* Welcome message special styling */
         .welcome-message {
             text-align: center;
             padding: 30px 20px;
@@ -538,7 +506,7 @@
     </div>
 
     <script>
-        // Configuration
+        // Configuration - These placeholders will be replaced by GitHub Actions
         const CONFIG = {
             GEMINI_API_KEY: 'PLACEHOLDER_GEMINI_KEY',
             SUPABASE_URL: 'PLACEHOLDER_SUPABASE_URL',
@@ -546,7 +514,14 @@
             DEFAULT_SYSTEM_PROMPT: 'You are Elle, a specialized gut health assistant. You help users with digestive health questions, gut microbiome information, probiotic and prebiotic guidance, IBS, IBD, and digestive disorder support, and nutrition for gut health. Always be friendly, supportive, and remind users to consult healthcare professionals for serious issues.',
         };
 
-        // Generate a simple anonymous user ID
+        // Log configuration status
+        console.log('🤖 Elle Chatbot Initialization');
+        console.log('API Key configured:', CONFIG.GEMINI_API_KEY !== 'PLACEHOLDER_GEMINI_KEY' ? '✅ Yes' : '❌ No');
+        if (CONFIG.GEMINI_API_KEY === 'PLACEHOLDER_GEMINI_KEY') {
+            console.log('Get your free API key at: https://makersuite.google.com/app/apikey');
+        }
+
+        // Generate anonymous user ID
         let userId = localStorage.getItem('anonymous_userId') || generateAnonymousId();
         let sessionId = generateSessionId();
         let chatHistory = [];
@@ -581,24 +556,11 @@
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
             
-            // For bot messages, wrap in a container for proper ombre effect
-            if (sender === 'bot') {
-                const textWrapper = document.createElement('div');
-                textWrapper.style.cssText = 'background: var(--surface-light); padding: 14px 18px; border-radius: 20px; border-bottom-left-radius: 6px; margin: -14px -18px;';
-                
-                const textContent = document.createElement('span');
-                textContent.textContent = message;
-                textContent.style.cssText = 'background: linear-gradient(135deg, #226137 0%, #4a9d6a 25%, #7bc99d 50%, #FCB1A8 75%, #ffd4cb 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 500;';
-                
-                textWrapper.appendChild(textContent);
-                contentDiv.appendChild(textWrapper);
-            } else {
-                // For user messages, apply ombre to text
-                const textContent = document.createElement('span');
-                textContent.textContent = message;
-                textContent.style.cssText = 'background: linear-gradient(135deg, #226137 0%, #4a9d6a 25%, #7bc99d 50%, #FCB1A8 75%, #ffd4cb 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 600;';
-                contentDiv.appendChild(textContent);
-            }
+            // Apply ombre gradient to text
+            const textContent = document.createElement('span');
+            textContent.textContent = message;
+            textContent.style.cssText = 'background: linear-gradient(135deg, #226137 0%, #4a9d6a 25%, #7bc99d 50%, #FCB1A8 75%, #ffd4cb 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 600;';
+            contentDiv.appendChild(textContent);
             
             const timeDiv = document.createElement('div');
             timeDiv.className = 'message-time';
@@ -629,7 +591,7 @@
             errorDiv.classList.add('active');
             setTimeout(() => {
                 errorDiv.classList.remove('active');
-            }, 5000);
+            }, 8000);
         }
 
         async function saveToSupabase(message, sender) {
@@ -660,7 +622,7 @@
                 });
 
                 if (response.ok) {
-                    console.log('Message saved to Supabase');
+                    console.log('✅ Message saved to Supabase');
                 }
             } catch (error) {
                 console.error('Failed to save to Supabase:', error);
@@ -706,11 +668,14 @@
         }
 
         async function callGeminiAPI(userMessage) {
-            if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY.length < 30) {
-                return "Configuration error: API key not configured.";
+            // Check if API key is configured
+            if (!CONFIG.GEMINI_API_KEY || 
+                CONFIG.GEMINI_API_KEY === 'PLACEHOLDER_GEMINI_KEY' || 
+                CONFIG.GEMINI_API_KEY.length < 30) {
+                return "⚠️ API Configuration Required: Please add your Gemini API key to GitHub Secrets. Get a free API key at https://makersuite.google.com/app/apikey";
             }
 
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
             
             const messages = chatHistory.length === 0 
                 ? [{ role: 'user', parts: [{ text: CONFIG.DEFAULT_SYSTEM_PROMPT + '\n\nUser: ' + userMessage }] }]
@@ -732,6 +697,8 @@
                 });
 
                 if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error('API Error:', response.status, errorData);
                     throw new Error(`API request failed: ${response.status}`);
                 }
 
@@ -751,7 +718,16 @@
                 }
             } catch (error) {
                 console.error('Gemini API error:', error);
-                return "I'm sorry, I encountered an error. Please try again later.";
+                
+                if (error.message.includes('404')) {
+                    return "⚠️ API Error: The Gemini API endpoint could not be found. Please verify your API key is correct and active.";
+                } else if (error.message.includes('401') || error.message.includes('403')) {
+                    return "⚠️ Authentication Error: Your API key is invalid or expired. Please update your GitHub Secret with a valid key.";
+                } else if (error.message.includes('429')) {
+                    return "⚠️ Rate Limit: Too many requests. Please wait a moment and try again.";
+                } else {
+                    return "I'm sorry, I encountered an error connecting to the AI service. Please check the console for details and try again.";
+                }
             }
         }
 
@@ -796,7 +772,7 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async function() {
-            console.log('Elle chatbot initialized');
+            console.log('✅ Elle chatbot initialized');
             
             document.getElementById('chatInput').addEventListener('keypress', handleKeyPress);
             document.getElementById('sendBtn').addEventListener('click', sendMessage);
