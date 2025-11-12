@@ -514,11 +514,24 @@
             DEFAULT_SYSTEM_PROMPT: 'You are Elle, a specialized gut health assistant. You help users with digestive health questions, gut microbiome information, probiotic and prebiotic guidance, IBS, IBD, and digestive disorder support, and nutrition for gut health. Always be friendly, supportive, and remind users to consult healthcare professionals for serious issues.',
         };
 
-        // Log configuration status
-        console.log('🤖 Elle Chatbot Initialization');
-        console.log('API Key configured:', CONFIG.GEMINI_API_KEY !== 'PLACEHOLDER_GEMINI_KEY' ? '✅ Yes' : '❌ No');
+        // Log configuration status - DEBUG MODE
+        console.log('🤖 Elle Chatbot Initialization - DEBUG MODE');
+        console.log('===========================================');
+        console.log('API Key Status:', CONFIG.GEMINI_API_KEY !== 'PLACEHOLDER_GEMINI_KEY' ? '✅ Configured' : '❌ NOT Configured');
+        console.log('API Key Value (first 10 chars):', CONFIG.GEMINI_API_KEY.substring(0, 10) + '...');
+        console.log('API Key Length:', CONFIG.GEMINI_API_KEY.length);
+        console.log('Is Placeholder?:', CONFIG.GEMINI_API_KEY === 'PLACEHOLDER_GEMINI_KEY');
+        console.log('Supabase URL Status:', CONFIG.SUPABASE_URL !== 'PLACEHOLDER_SUPABASE_URL' ? '✅ Configured' : '❌ NOT Configured');
+        console.log('Supabase Key Status:', CONFIG.SUPABASE_ANON_KEY !== 'PLACEHOLDER_SUPABASE_KEY' ? '✅ Configured' : '❌ NOT Configured');
+        console.log('===========================================');
+        
         if (CONFIG.GEMINI_API_KEY === 'PLACEHOLDER_GEMINI_KEY') {
-            console.log('Get your free API key at: https://makersuite.google.com/app/apikey');
+            console.error('❌ DEPLOYMENT ERROR: Placeholders were not replaced!');
+            console.error('This means the GitHub Actions workflow did not run correctly.');
+            console.error('Please check:');
+            console.error('1. GitHub Secrets are set: GEMINI_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY');
+            console.error('2. The workflow file (deploy.yml) is in .github/workflows/ directory');
+            console.error('3. Check the Actions tab in your GitHub repo for deployment logs');
         }
 
         // Generate anonymous user ID
