@@ -515,23 +515,23 @@
         };
 
         // Log configuration status - DEBUG MODE
-        console.log('🤖 Elle Chatbot Initialization - DEBUG MODE');
+        console.log('🤖 Elle Chatbot Initialization - DEBUG MODE v2');
         console.log('===========================================');
-        console.log('API Key Status:', CONFIG.GEMINI_API_KEY !== 'PLACEHOLDER_GEMINI_KEY' ? '✅ Configured' : '❌ NOT Configured');
-        console.log('API Key Value (first 10 chars):', CONFIG.GEMINI_API_KEY.substring(0, 10) + '...');
+        console.log('Raw API Key:', CONFIG.GEMINI_API_KEY);
+        console.log('API Key starts with AIza?:', CONFIG.GEMINI_API_KEY.startsWith('AIza'));
         console.log('API Key Length:', CONFIG.GEMINI_API_KEY.length);
-        console.log('Is Placeholder?:', CONFIG.GEMINI_API_KEY === 'PLACEHOLDER_GEMINI_KEY');
-        console.log('Supabase URL Status:', CONFIG.SUPABASE_URL !== 'PLACEHOLDER_SUPABASE_URL' ? '✅ Configured' : '❌ NOT Configured');
-        console.log('Supabase Key Status:', CONFIG.SUPABASE_ANON_KEY !== 'PLACEHOLDER_SUPABASE_KEY' ? '✅ Configured' : '❌ NOT Configured');
         console.log('===========================================');
         
-        if (CONFIG.GEMINI_API_KEY === 'PLACEHOLDER_GEMINI_KEY') {
-            console.error('❌ DEPLOYMENT ERROR: Placeholders were not replaced!');
-            console.error('This means the GitHub Actions workflow did not run correctly.');
-            console.error('Please check:');
-            console.error('1. GitHub Secrets are set: GEMINI_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY');
-            console.error('2. The workflow file (deploy.yml) is in .github/workflows/ directory');
-            console.error('3. Check the Actions tab in your GitHub repo for deployment logs');
+        // Check if API key is actually configured (starts with AIza and is right length)
+        const isValidKey = CONFIG.GEMINI_API_KEY.startsWith('AIza') && 
+                          CONFIG.GEMINI_API_KEY.length >= 35 && 
+                          CONFIG.GEMINI_API_KEY.length <= 45;
+        
+        if (isValidKey) {
+            console.log('✅ API Key is VALID and ready to use!');
+        } else {
+            console.error('❌ API Key not configured properly');
+            console.error('Current value:', CONFIG.GEMINI_API_KEY);
         }
 
         // Generate anonymous user ID
@@ -681,10 +681,13 @@
         }
 
         async function callGeminiAPI(userMessage) {
-            // Check if API key is configured
+            // Check if API key is configured - improved detection
+            const isPlaceholder = CONFIG.GEMINI_API_KEY === 'PLACEHOLDER_GEMINI_KEY' || 
+                                  CONFIG.GEMINI_API_KEY.includes('PLACEHOLDER');
+            
             if (!CONFIG.GEMINI_API_KEY || 
-                CONFIG.GEMINI_API_KEY === 'PLACEHOLDER_GEMINI_KEY' || 
-                CONFIG.GEMINI_API_KEY.length < 30) {
+                isPlaceholder || 
+                CONFIG.GEMINI_API_KEY.length < 20) {
                 return "⚠️ API Configuration Required: Please add your Gemini API key to GitHub Secrets. Get a free API key at https://makersuite.google.com/app/apikey";
             }
 
