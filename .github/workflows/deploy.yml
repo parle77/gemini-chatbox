@@ -80,6 +80,10 @@ jobs:
         # Create backup
         cp index.html index.html.backup
         
+        # Add cache-busting comment with timestamp
+        TIMESTAMP=$(date +%s)
+        sed -i "s|</head>|<!-- Deploy: $TIMESTAMP --></head>|" index.html
+        
         # Replace placeholders using sed with different delimiter to avoid issues
         echo "Replacing GEMINI_API_KEY..."
         sed -i "s|PLACEHOLDER_GEMINI_KEY|${GEMINI_KEY}|g" index.html
