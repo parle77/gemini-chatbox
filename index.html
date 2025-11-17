@@ -519,232 +519,168 @@
     </div>
 
     <script>
-        const CONFIG = {
-            GEMINI_API_KEY: '__GEMINI_API_KEY__',
-            SUPABASE_URL: '__SUPABASE_URL__',
-            SUPABASE_ANON_KEY: '__SUPABASE_ANON_KEY__',
-            DEFAULT_SYSTEM_PROMPT: 'You are Guto, a specialized gut health assistant. You help users with digestive health questions, gut microbiome information, probiotic and prebiotic guidance, IBS, IBD, and digestive disorder support, and nutrition for gut health. Always be friendly, supportive, and remind users to consult healthcare professionals for serious issues.',
-        };
+const CONFIG = {
+    GEMINI_EDGE_URL: 'https://<project-ref>.functions.supabase.co/gemini_chatbox', // replace with your actual URL
+    SAVECHAT_EDGE_URL: 'https://<project-ref>.functions.supabase.co/gemini_saveChat', // replace with your actual URL
+    DEFAULT_SYSTEM_PROMPT: 'You are Guto, a specialized gut health assistant. You help users with digestive health questions, gut microbiome information, probiotic and prebiotic guidance, IBS, IBD, and digestive disorder support, and nutrition for gut health. Always be friendly, supportive, and remind users to consult healthcare professionals for serious issues.',
+};
 
-        console.log('🤖 Guto Chatbot Initialization');
-        console.log('API Key configured:', CONFIG.GEMINI_API_KEY !== '__GEMINI_API_KEY__');
-        console.log('Supabase configured:', CONFIG.SUPABASE_URL !== '__SUPABASE_URL__');
+let userId = localStorage.getItem('anonymous_userId') || generateAnonymousId();
+let sessionId = generateSessionId();
+let chatHistory = [];
 
-        let userId = localStorage.getItem('anonymous_userId') || generateAnonymousId();
-        let sessionId = generateSessionId();
-        let chatHistory = [];
+function generateAnonymousId() {
+    const id = 'anon_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('anonymous_userId', id);
+    return id;
+}
 
-        function generateAnonymousId() {
-            const id = 'anon_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem('anonymous_userId', id);
-            return id;
-        }
+function generateSessionId() {
+    return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
 
-        function generateSessionId() {
-            return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        }
+function formatTime(date) {
+    return new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true
+    }).format(date);
+}
 
-        function formatTime(date) {
-            return new Intl.DateTimeFormat('en-US', {
-                hour: 'numeric',
-                minute: 'numeric',
-                hour12: true
-            }).format(date);
-        }
+function addMessageToUI(message, sender, timestamp = null) {
+    const chatMessages = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${sender}`;
 
-        function addMessageToUI(message, sender, timestamp = null) {
-            const chatMessages = document.getElementById('chatMessages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${sender}`;
-            
-            const avatarDiv = document.createElement('div');
-            avatarDiv.className = 'message-avatar';
-            if (sender === 'bot') {
-                const img = document.createElement('img');
-                img.src = './guto.png';
-                img.alt = 'Guto';
-                avatarDiv.appendChild(img);
-            } else {
-                avatarDiv.textContent = '👤';
-            }
-            
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content';
-            contentDiv.textContent = message;
-            
-            const timeDiv = document.createElement('div');
-            timeDiv.className = 'message-time';
-            timeDiv.textContent = formatTime(timestamp || new Date());
-            
-            messageDiv.appendChild(avatarDiv);
-            messageDiv.appendChild(contentDiv);
-            
-            chatMessages.appendChild(messageDiv);
-            chatMessages.appendChild(timeDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
+    const avatarDiv = document.createElement('div');
+    avatarDiv.className = 'message-avatar';
+    if (sender === 'bot') {
+        const img = document.createElement('img');
+        img.src = './guto.png';
+        img.alt = 'Guto';
+        avatarDiv.appendChild(img);
+    } else {
+        avatarDiv.textContent = '👤';
+    }
 
-        function toggleTyping(show) {
-            const typingIndicator = document.getElementById('typingIndicator');
-            if (show) {
-                typingIndicator.classList.add('active');
-                const chatMessages = document.getElementById('chatMessages');
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            } else {
-                typingIndicator.classList.remove('active');
-            }
-        }
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    contentDiv.textContent = message;
 
-        function showError(message) {
-            const errorDiv = document.getElementById('errorMessage');
-            errorDiv.textContent = message;
-            errorDiv.classList.add('active');
-            setTimeout(() => {
-                errorDiv.classList.remove('active');
-            }, 8000);
-        }
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'message-time';
+    timeDiv.textContent = formatTime(timestamp || new Date());
 
-        async function saveToSupabase(message, sender) {
-            if (!CONFIG.SUPABASE_URL || 
-                CONFIG.SUPABASE_URL === '__SUPABASE_URL__' ||
-                !CONFIG.SUPABASE_ANON_KEY ||
-                CONFIG.SUPABASE_ANON_KEY === '__SUPABASE_ANON_KEY__') {
-                return;
-            }
+    messageDiv.appendChild(avatarDiv);
+    messageDiv.appendChild(contentDiv);
+    messageDiv.appendChild(timeDiv);
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
 
-            try {
-                const response = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/chat_messages`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'apikey': CONFIG.SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
-                        'Prefer': 'return=minimal'
-                    },
-                    body: JSON.stringify({
-                        user_id: userId,
-                        session_id: sessionId,
-                        message: message,
-                        sender: sender,
-                        timestamp: new Date().toISOString()
-                    })
-                });
+function toggleTyping(show) {
+    const typingIndicator = document.getElementById('typingIndicator');
+    if (show) {
+        typingIndicator.classList.add('active');
+        document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+    } else {
+        typingIndicator.classList.remove('active');
+    }
+}
 
-                if (response.ok) {
-                    console.log('✅ Message saved to Supabase');
-                }
-            } catch (error) {
-                console.error('Failed to save to Supabase:', error);
-            }
-        }
+function showError(message) {
+    const errorDiv = document.getElementById('errorMessage');
+    errorDiv.textContent = message;
+    errorDiv.classList.add('active');
+    setTimeout(() => errorDiv.classList.remove('active'), 8000);
+}
 
-        async function callGeminiAPI(userMessage) {
-            if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY === '__GEMINI_API_KEY__') {
-                return "⚠️ API Configuration Required: Please add your Gemini API key to GitHub Secrets. Get a free API key at https://makersuite.google.com/app/apikey";
-            }
-
-            const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
-            
-            const messages = chatHistory.length === 0 
-                ? [{ role: 'user', parts: [{ text: CONFIG.DEFAULT_SYSTEM_PROMPT + '\n\nUser: ' + userMessage }] }]
-                : [...chatHistory, { role: 'user', parts: [{ text: userMessage }] }];
-
-            try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: messages,
-                        generationConfig: {
-                            temperature: 0.7,
-                            topK: 1,
-                            topP: 1,
-                            maxOutputTokens: 2048,
-                        }
-                    })
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    console.error('API Error:', response.status, errorData);
-                    throw new Error(`API request failed: ${response.status}`);
-                }
-
-                const data = await response.json();
-                
-                if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-                    const botResponse = data.candidates[0].content.parts[0].text;
-                    
-                    chatHistory.push(
-                        { role: 'user', parts: [{ text: userMessage }] },
-                        { role: 'model', parts: [{ text: botResponse }] }
-                    );
-                    
-                    return botResponse;
-                } else {
-                    throw new Error('Invalid response from API');
-                }
-            } catch (error) {
-                console.error('Gemini API error:', error);
-                
-                if (error.message.includes('404')) {
-                    return "⚠️ API Error: The Gemini API endpoint could not be found. Please verify your API key is correct and active.";
-                } else if (error.message.includes('401') || error.message.includes('403')) {
-                    return "⚠️ Authentication Error: Your API key is invalid or expired. Please update your GitHub Secret with a valid key.";
-                } else if (error.message.includes('429')) {
-                    return "⚠️ Rate Limit: Too many requests. Please wait a moment and try again.";
-                } else {
-                    return "I'm sorry, I encountered an error connecting to the AI service. Please try again.";
-                }
-            }
-        }
-
-        async function sendMessage() {
-            const input = document.getElementById('chatInput');
-            const sendBtn = document.getElementById('sendBtn');
-            const message = input.value.trim();
-            
-            if (!message) return;
-            
-            input.disabled = true;
-            sendBtn.disabled = true;
-            
-            addMessageToUI(message, 'user');
-            input.value = '';
-            
-            await saveToSupabase(message, 'user');
-            
-            toggleTyping(true);
-            
-            try {
-                const botResponse = await callGeminiAPI(message);
-                toggleTyping(false);
-                addMessageToUI(botResponse, 'bot');
-                await saveToSupabase(botResponse, 'bot');
-            } catch (error) {
-                toggleTyping(false);
-                showError('Failed to get response. Please try again.');
-            } finally {
-                input.disabled = false;
-                sendBtn.disabled = false;
-                input.focus();
-            }
-        }
-
-        function handleKeyPress(event) {
-            if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                sendMessage();
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('✅ Guto chatbot initialized');
-            
-            document.getElementById('chatInput').addEventListener('keypress', handleKeyPress);
-            document.getElementById('sendBtn').addEventListener('click', sendMessage);
-            document.getElementById('chatInput').focus();
+// Save chat message to Supabase Edge Function
+async function saveToSupabase(message, sender) {
+    try {
+        await fetch(CONFIG.SAVECHAT_EDGE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, sessionId, message, sender })
         });
-    </script>
+    } catch (error) {
+        console.error("Failed to save message:", error);
+    }
+}
+
+// Call Gemini Edge Function
+async function callGeminiAPI(userMessage) {
+    try {
+        const response = await fetch(CONFIG.GEMINI_EDGE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: userMessage, chatHistory })
+        });
+
+        const data = await response.json();
+
+        if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+            const botResponse = data.candidates[0].content.parts[0].text;
+            chatHistory.push(
+                { role: 'user', parts: [{ text: userMessage }] },
+                { role: 'model', parts: [{ text: botResponse }] }
+            );
+            return botResponse;
+        } else {
+            return "⚠️ Error: Invalid response from AI service";
+        }
+    } catch (err) {
+        console.error("Gemini API call failed:", err);
+        return "⚠️ Failed to connect to AI service.";
+    }
+}
+
+// Send message handler
+async function sendMessage() {
+    const input = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const message = input.value.trim();
+    if (!message) return;
+
+    input.disabled = true;
+    sendBtn.disabled = true;
+
+    addMessageToUI(message, 'user');
+    input.value = '';
+    await saveToSupabase(message, 'user');
+
+    toggleTyping(true);
+    try {
+        const botResponse = await callGeminiAPI(message);
+        toggleTyping(false);
+        addMessageToUI(botResponse, 'bot');
+        await saveToSupabase(botResponse, 'bot');
+    } catch (err) {
+        toggleTyping(false);
+        showError("Failed to get response. Please try again.");
+    } finally {
+        input.disabled = false;
+        sendBtn.disabled = false;
+        input.focus();
+    }
+}
+
+// Handle Enter key
+function handleKeyPress(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage();
+    }
+}
+
+// Initialize chat
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('✅ Guto chatbot initialized');
+    document.getElementById('chatInput').addEventListener('keypress', handleKeyPress);
+    document.getElementById('sendBtn').addEventListener('click', sendMessage);
+    document.getElementById('chatInput').focus();
+});
+</script>
+
 </body>
 </html>
