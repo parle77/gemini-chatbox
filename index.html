@@ -520,167 +520,113 @@
 
     <script>
 const CONFIG = {
-    GEMINI_EDGE_URL: 'https://nvnopwfkbkslvrvvvjij.supabase.co/functions/v1/gemini_chatbox', // replace with your actual URL
-    SAVECHAT_EDGE_URL: 'https://nvnopwfkbkslvrvvvjij.supabase.co/functions/v1/gemini_saveChat', // replace with your actual URL
-    DEFAULT_SYSTEM_PROMPT: 'You are Guto, a specialized gut health assistant. You help users with digestive health questions, gut microbiome information, probiotic and prebiotic guidance, IBS, IBD, and digestive disorder support, and nutrition for gut health. Always be friendly, supportive, and remind users to consult healthcare professionals for serious issues.',
+    GEMINI_EDGE_URL: "https://nvnopwfkbkslvrvvvjij.supabase.co/functions/v1/gemini_chatbox",
+    SAVECHAT_EDGE_URL: "https://nvnopwfkbkslvrvvvjij.supabase.co/functions/v1/gemini_saveChat",
+    DEFAULT_SYSTEM_PROMPT:
+        "You are Guto, a specialized gut health assistant. Be friendly and helpful."
 };
 
-let userId = localStorage.getItem('anonymous_userId') || generateAnonymousId();
-let sessionId = generateSessionId();
+let supabaseAccessToken = null; // FlutterFlow will set this
+let userId = null;
+let sessionId = "session_" + Date.now();
+
+window.setSupabaseToken = function(token, uid) {
+    supabaseAccessToken = token;
+    userId = uid;
+    console.log("🔐 Supabase token set");
+};
+
 let chatHistory = [];
 
-function generateAnonymousId() {
-    const id = 'anon_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    localStorage.setItem('anonymous_userId', id);
-    return id;
-}
+function addMessageToUI(text, sender) {
+    const chatMessages = document.getElementById("chatMessages");
 
-function generateSessionId() {
-    return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-}
+    const wrapper = document.createElement("div");
+    wrapper.className = "message " + sender;
 
-function formatTime(date) {
-    return new Intl.DateTimeFormat('en-US', {
-        hour: 'numeric',
-        minute: 'numeric',
-        hour12: true
-    }).format(date);
-}
+    wrapper.innerHTML = `
+        <div class="message-avatar">${sender === "bot" ? "<img src='./guto.png'/>" : "👤"}</div>
+        <div class="message-content">${text}</div>
+        <div class='message-time'>${new Date().toLocaleTimeString()}</div>
+    `;
 
-function addMessageToUI(message, sender, timestamp = null) {
-    const chatMessages = document.getElementById('chatMessages');
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${sender}`;
-
-    const avatarDiv = document.createElement('div');
-    avatarDiv.className = 'message-avatar';
-    if (sender === 'bot') {
-        const img = document.createElement('img');
-        img.src = './guto.png';
-        img.alt = 'Guto';
-        avatarDiv.appendChild(img);
-    } else {
-        avatarDiv.textContent = '👤';
-    }
-
-    const contentDiv = document.createElement('div');
-    contentDiv.className = 'message-content';
-    contentDiv.textContent = message;
-
-    const timeDiv = document.createElement('div');
-    timeDiv.className = 'message-time';
-    timeDiv.textContent = formatTime(timestamp || new Date());
-
-    messageDiv.appendChild(avatarDiv);
-    messageDiv.appendChild(contentDiv);
-    messageDiv.appendChild(timeDiv);
-    chatMessages.appendChild(messageDiv);
+    chatMessages.appendChild(wrapper);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 function toggleTyping(show) {
-    const typingIndicator = document.getElementById('typingIndicator');
-    if (show) {
-        typingIndicator.classList.add('active');
-        document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
-    } else {
-        typingIndicator.classList.remove('active');
-    }
+    document.getElementById("typingIndicator").classList.toggle("active", show);
 }
 
-function showError(message) {
-    const errorDiv = document.getElementById('errorMessage');
-    errorDiv.textContent = message;
-    errorDiv.classList.add('active');
-    setTimeout(() => errorDiv.classList.remove('active'), 8000);
+async function callGeminiAPI(message) {
+    const response = await fetch(CONFIG.GEMINI_EDGE_URL, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${supabaseAccessToken}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ message, chatHistory })
+    });
+
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+
+    const botMsg = data.candidates[0].content.parts[0].text;
+    
+    chatHistory.push(
+        { role: "user", parts: [{ text: message }] },
+        { role: "model", parts: [{ text: botMsg }] }
+    );
+
+    return botMsg;
 }
 
-// Save chat message to Supabase Edge Function
 async function saveToSupabase(message, sender) {
-    try {
-        await fetch(CONFIG.SAVECHAT_EDGE_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId, sessionId, message, sender })
-        });
-    } catch (error) {
-        console.error("Failed to save message:", error);
-    }
+    await fetch(CONFIG.SAVECHAT_EDGE_URL, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${supabaseAccessToken}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ userId, sessionId, message, sender })
+    });
 }
 
-// Call Gemini Edge Function
-async function callGeminiAPI(userMessage) {
-    try {
-        const response = await fetch(CONFIG.GEMINI_EDGE_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: userMessage, chatHistory })
-        });
-
-        const data = await response.json();
-
-        if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-            const botResponse = data.candidates[0].content.parts[0].text;
-            chatHistory.push(
-                { role: 'user', parts: [{ text: userMessage }] },
-                { role: 'model', parts: [{ text: botResponse }] }
-            );
-            return botResponse;
-        } else {
-            return "⚠️ Error: Invalid response from AI service";
-        }
-    } catch (err) {
-        console.error("Gemini API call failed:", err);
-        return "⚠️ Failed to connect to AI service.";
-    }
-}
-
-// Send message handler
 async function sendMessage() {
-    const input = document.getElementById('chatInput');
-    const sendBtn = document.getElementById('sendBtn');
+    if (!supabaseAccessToken) {
+        alert("User not authenticated!");
+        return;
+    }
+
+    const input = document.getElementById("chatInput");
     const message = input.value.trim();
     if (!message) return;
 
-    input.disabled = true;
-    sendBtn.disabled = true;
+    addMessageToUI(message, "user");
+    input.value = "";
 
-    addMessageToUI(message, 'user');
-    input.value = '';
-    await saveToSupabase(message, 'user');
+    await saveToSupabase(message, "user");
 
     toggleTyping(true);
     try {
-        const botResponse = await callGeminiAPI(message);
+        const botReply = await callGeminiAPI(message);
         toggleTyping(false);
-        addMessageToUI(botResponse, 'bot');
-        await saveToSupabase(botResponse, 'bot');
+        addMessageToUI(botReply, "bot");
+        await saveToSupabase(botReply, "bot");
     } catch (err) {
         toggleTyping(false);
-        showError("Failed to get response. Please try again.");
-    } finally {
-        input.disabled = false;
-        sendBtn.disabled = false;
-        input.focus();
+        addMessageToUI("⚠️ Error: " + err.message, "bot");
     }
 }
 
-// Handle Enter key
-function handleKeyPress(event) {
-    if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        sendMessage();
-    }
-}
-
-// Initialize chat
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('✅ Guto chatbot initialized');
-    document.getElementById('chatInput').addEventListener('keypress', handleKeyPress);
-    document.getElementById('sendBtn').addEventListener('click', sendMessage);
-    document.getElementById('chatInput').focus();
+document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("sendBtn").onclick = sendMessage;
+    document.getElementById("chatInput").onkeypress = (e) => {
+        if (e.key === "Enter") sendMessage();
+    };
 });
 </script>
+
 
 </body>
 </html>
