@@ -20,26 +20,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Inject secrets into index.html
-      - name: Inject secrets
-        env:
-          GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
-          SUPABASE_URL_VAL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY_VAL: ${{ secrets.SUPABASE_ANON_KEY }}
-        run: |
-          perl -pi -e "s|__GEMINI_API_KEY__|$ENV{GEMINI_KEY}|g" index.html
-          perl -pi -e "s|__SUPABASE_URL__|$ENV{SUPABASE_URL_VAL}|g" index.html
-          perl -pi -e "s|__SUPABASE_ANON_KEY__|$ENV{SUPABASE_KEY_VAL}|g" index.html
-
-      - name: Setup Pages
+      - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ${{ github.workspace }}   # include index.html + guto.png
+          path: ${{ github.workspace }}   # uploads index.html + guto.png
 
       - name: Deploy to GitHub Pages
         id: deploy
         uses: actions/deploy-pages@v4
-
