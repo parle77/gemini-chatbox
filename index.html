@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Elle - Your Gut Health Assistant</title>
+    <title>Guto - Your Gut Health Assistant</title>
     <style>
         /* Modern Chat Interface with Brand Colors */
         :root {
@@ -104,9 +104,16 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
             box-shadow: 0 8px 20px rgba(34, 97, 55, 0.3);
             position: relative;
+            overflow: hidden;
+        }
+
+        .bot-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
         }
 
         .bot-avatar::after {
@@ -200,9 +207,15 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
             flex-shrink: 0;
             box-shadow: 0 4px 12px rgba(34, 97, 55, 0.2);
+            overflow: hidden;
+        }
+
+        .message-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .message.user .message-avatar {
@@ -224,12 +237,14 @@
             border: 1px solid var(--border-color);
             border-bottom-left-radius: 6px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+            color: var(--text-primary);
         }
 
         .message.user .message-content {
             background: linear-gradient(135deg, #FCB1A8 0%, #ffc9be 50%, #ffd4cb 100%);
             border-bottom-right-radius: 6px;
             box-shadow: 0 10px 25px rgba(252, 177, 168, 0.35);
+            color: var(--text-primary);
         }
 
         .message-time {
@@ -324,16 +339,12 @@
             border: none;
             font-size: 15px;
             outline: none;
-            background: linear-gradient(135deg, #226137 0%, #4a9d6a 25%, #7bc99d 50%, #FCB1A8 75%, #ffd4cb 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            font-weight: 600;
+            color: var(--text-primary);
+            font-weight: 500;
         }
 
         .chat-input::placeholder {
             color: var(--text-secondary);
-            -webkit-text-fill-color: var(--text-secondary);
             opacity: 1;
         }
 
@@ -462,9 +473,11 @@
 <body>
     <div class="chat-container">
         <div class="chat-header">
-            <div class="bot-avatar">🤖</div>
+            <div class="bot-avatar">
+                <img src="./guto.png" alt="Guto">
+            </div>
             <div class="bot-info">
-                <div class="bot-name">Elle</div>
+                <div class="bot-name">Guto</div>
                 <div class="bot-status">
                     <span class="status-dot"></span>
                     Your Gut Health Assistant
@@ -474,7 +487,7 @@
 
         <div class="chat-messages" id="chatMessages">
             <div class="welcome-message">
-                <div class="welcome-title">Hi, I'm Elle! 👋</div>
+                <div class="welcome-title">Hi, I'm Guto! 👋</div>
                 <div class="welcome-subtitle">Your personal gut health assistant. Ask me anything about digestive health, nutrition, and wellness.</div>
             </div>
         </div>
@@ -506,35 +519,17 @@
     </div>
 
     <script>
-        // Configuration - These placeholders will be replaced by GitHub Actions
         const CONFIG = {
-            GEMINI_API_KEY: 'PLACEHOLDER_GEMINI_KEY',
-            SUPABASE_URL: 'PLACEHOLDER_SUPABASE_URL',
-            SUPABASE_ANON_KEY: 'PLACEHOLDER_SUPABASE_KEY',
-            DEFAULT_SYSTEM_PROMPT: 'You are Elle, a specialized gut health assistant. You help users with digestive health questions, gut microbiome information, probiotic and prebiotic guidance, IBS, IBD, and digestive disorder support, and nutrition for gut health. Always be friendly, supportive, and remind users to consult healthcare professionals for serious issues.',
+            GEMINI_API_KEY: '__GEMINI_API_KEY__',
+            SUPABASE_URL: '__SUPABASE_URL__',
+            SUPABASE_ANON_KEY: '__SUPABASE_ANON_KEY__',
+            DEFAULT_SYSTEM_PROMPT: 'You are Guto, a specialized gut health assistant. You help users with digestive health questions, gut microbiome information, probiotic and prebiotic guidance, IBS, IBD, and digestive disorder support, and nutrition for gut health. Always be friendly, supportive, and remind users to consult healthcare professionals for serious issues.',
         };
 
-        // Log configuration status - DEBUG MODE
-        console.log('🤖 Elle Chatbot Initialization - DEBUG MODE v2');
-        console.log('===========================================');
-        console.log('Raw API Key:', CONFIG.GEMINI_API_KEY);
-        console.log('API Key starts with AIza?:', CONFIG.GEMINI_API_KEY.startsWith('AIza'));
-        console.log('API Key Length:', CONFIG.GEMINI_API_KEY.length);
-        console.log('===========================================');
-        
-        // Check if API key is actually configured (starts with AIza and is right length)
-        const isValidKey = CONFIG.GEMINI_API_KEY.startsWith('AIza') && 
-                          CONFIG.GEMINI_API_KEY.length >= 35 && 
-                          CONFIG.GEMINI_API_KEY.length <= 45;
-        
-        if (isValidKey) {
-            console.log('✅ API Key is VALID and ready to use!');
-        } else {
-            console.error('❌ API Key not configured properly');
-            console.error('Current value:', CONFIG.GEMINI_API_KEY);
-        }
+        console.log('🤖 Guto Chatbot Initialization');
+        console.log('API Key configured:', CONFIG.GEMINI_API_KEY !== '__GEMINI_API_KEY__');
+        console.log('Supabase configured:', CONFIG.SUPABASE_URL !== '__SUPABASE_URL__');
 
-        // Generate anonymous user ID
         let userId = localStorage.getItem('anonymous_userId') || generateAnonymousId();
         let sessionId = generateSessionId();
         let chatHistory = [];
@@ -564,16 +559,18 @@
             
             const avatarDiv = document.createElement('div');
             avatarDiv.className = 'message-avatar';
-            avatarDiv.textContent = sender === 'bot' ? '🤖' : '👤';
+            if (sender === 'bot') {
+                const img = document.createElement('img');
+                img.src = './assets/guto.png';
+                img.alt = 'Guto';
+                avatarDiv.appendChild(img);
+            } else {
+                avatarDiv.textContent = '👤';
+            }
             
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
-            
-            // Apply ombre gradient to text
-            const textContent = document.createElement('span');
-            textContent.textContent = message;
-            textContent.style.cssText = 'background: linear-gradient(135deg, #226137 0%, #4a9d6a 25%, #7bc99d 50%, #FCB1A8 75%, #ffd4cb 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 600;';
-            contentDiv.appendChild(textContent);
+            contentDiv.textContent = message;
             
             const timeDiv = document.createElement('div');
             timeDiv.className = 'message-time';
@@ -609,10 +606,9 @@
 
         async function saveToSupabase(message, sender) {
             if (!CONFIG.SUPABASE_URL || 
-                CONFIG.SUPABASE_URL === 'PLACEHOLDER_SUPABASE_URL' ||
-                !CONFIG.SUPABASE_URL.startsWith('https://') ||
+                CONFIG.SUPABASE_URL === '__SUPABASE_URL__' ||
                 !CONFIG.SUPABASE_ANON_KEY ||
-                CONFIG.SUPABASE_ANON_KEY === 'PLACEHOLDER_SUPABASE_KEY') {
+                CONFIG.SUPABASE_ANON_KEY === '__SUPABASE_ANON_KEY__') {
                 return;
             }
 
@@ -642,56 +638,12 @@
             }
         }
 
-        async function loadChatHistory() {
-            if (!CONFIG.SUPABASE_URL || 
-                CONFIG.SUPABASE_URL === 'PLACEHOLDER_SUPABASE_URL' ||
-                !CONFIG.SUPABASE_ANON_KEY ||
-                CONFIG.SUPABASE_ANON_KEY === 'PLACEHOLDER_SUPABASE_KEY') {
-                return;
-            }
-
-            try {
-                const response = await fetch(
-                    `${CONFIG.SUPABASE_URL}/rest/v1/chat_messages?user_id=eq.${userId}&order=timestamp.asc&limit=50`,
-                    {
-                        headers: {
-                            'apikey': CONFIG.SUPABASE_ANON_KEY,
-                            'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`
-                        }
-                    }
-                );
-
-                if (response.ok) {
-                    const messages = await response.json();
-                    
-                    if (messages.length > 0) {
-                        messages.forEach(msg => {
-                            chatHistory.push({
-                                role: msg.sender === 'user' ? 'user' : 'model',
-                                parts: [{ text: msg.message }]
-                            });
-                            
-                            addMessageToUI(msg.message, msg.sender, new Date(msg.timestamp));
-                        });
-                    }
-                }
-            } catch (error) {
-                console.error('Failed to load chat history:', error);
-            }
-        }
-
         async function callGeminiAPI(userMessage) {
-            // Check if API key is configured - improved detection
-            const isPlaceholder = CONFIG.GEMINI_API_KEY === 'PLACEHOLDER_GEMINI_KEY' || 
-                                  CONFIG.GEMINI_API_KEY.includes('PLACEHOLDER');
-            
-            if (!CONFIG.GEMINI_API_KEY || 
-                isPlaceholder || 
-                CONFIG.GEMINI_API_KEY.length < 20) {
+            if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY === '__GEMINI_API_KEY__') {
                 return "⚠️ API Configuration Required: Please add your Gemini API key to GitHub Secrets. Get a free API key at https://makersuite.google.com/app/apikey";
             }
 
-            const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
             
             const messages = chatHistory.length === 0 
                 ? [{ role: 'user', parts: [{ text: CONFIG.DEFAULT_SYSTEM_PROMPT + '\n\nUser: ' + userMessage }] }]
@@ -742,7 +694,7 @@
                 } else if (error.message.includes('429')) {
                     return "⚠️ Rate Limit: Too many requests. Please wait a moment and try again.";
                 } else {
-                    return "I'm sorry, I encountered an error connecting to the AI service. Please check the console for details and try again.";
+                    return "I'm sorry, I encountered an error connecting to the AI service. Please try again.";
                 }
             }
         }
@@ -786,15 +738,11 @@
             }
         }
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', async function() {
-            console.log('✅ Elle chatbot initialized');
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('✅ Guto chatbot initialized');
             
             document.getElementById('chatInput').addEventListener('keypress', handleKeyPress);
             document.getElementById('sendBtn').addEventListener('click', sendMessage);
-            
-            await loadChatHistory();
-            
             document.getElementById('chatInput').focus();
         });
     </script>
