@@ -18,25 +18,33 @@ jobs:
       url: ${{ steps.deploy-to-pages.outputs.page_url }}
 
     steps:
-      # --- Checkout repository ---
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # --- Debug secrets ---
       - name: Debug - Check secrets
         run: |
           echo "📁 Repository root files:"
           ls -la
           echo ""
-          for key in GEMINI_API_KEY SUPABASE_URL SUPABASE_ANON_KEY; do
-            if [ -n "${{ secrets[$key] }}" ]; then
-              echo "✅ $key is set"
-            else
-              echo "⚠️ $key is missing"
-            fi
-          done
 
-      # --- Inject secrets into index.html ---
+          if [ -n "${{ secrets.GEMINI_API_KEY }}" ]; then
+            echo "✅ GEMINI_API_KEY is set"
+          else
+            echo "❌ GEMINI_API_KEY is missing"
+          fi
+
+          if [ -n "${{ secrets.SUPABASE_URL }}" ]; then
+            echo "ℹ️ SUPABASE_URL is set"
+          else
+            echo "⚠️ SUPABASE_URL not set (optional)"
+          fi
+
+          if [ -n "${{ secrets.SUPABASE_ANON_KEY }}" ]; then
+            echo "ℹ️ SUPABASE_ANON_KEY is set"
+          else
+            echo "⚠️ SUPABASE_ANON_KEY not set (optional)"
+          fi
+
       - name: Inject secrets
         env:
           GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -53,15 +61,9 @@ jobs:
           perl -pi -e "s|__SUPABASE_ANON_KEY__|$ENV{SUPABASE_KEY_VAL}|g" index.html
           echo "✅ Secrets injected successfully"
 
-      # --- Optional preview ---
-      - name: Preview snippet of index.html
-        run: grep -n "CONFIG" index.html | head -n 20
-
-      # --- Setup GitHub Pages ---
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      # --- Upload root files for Pages ---
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -70,12 +72,10 @@ jobs:
             .github/
             .git/
 
-      # --- Deploy to GitHub Pages ---
       - name: Deploy to GitHub Pages
         id: deploy-to-pages
         uses: actions/deploy-pages@v4
 
-      # --- Deployment complete ---
       - name: Deployment complete
         run: |
           echo "=================================================="
@@ -85,5 +85,3 @@ jobs:
           echo "⏳ Wait 1–2 minutes for CDN cache to update"
           echo "🔄 Hard refresh: Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac)"
           echo "=================================================="
-
-
