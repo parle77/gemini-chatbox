@@ -18,73 +18,74 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Debug - List files and check secrets
-      run: |
-        echo "📁 Repository root files:"
-        ls -la
+      - name: Debug - List files and check secrets
+        run: |
+          echo "📁 Repository root files:"
+          ls -la
 
-        echo ""
-        echo "🔑 Checking secrets..."
-        [ -n "${{ secrets.GEMINI_API_KEY }}" ] && echo "✅ GEMINI_API_KEY is set" || echo "❌ GEMINI_API_KEY is missing"
-        [ -n "${{ secrets.SUPABASE_URL }}" ] && echo "ℹ️ SUPABASE_URL is set" || echo "⚠️ SUPABASE_URL not set (optional)"
-        [ -n "${{ secrets.SUPABASE_ANON_KEY }}" ] && echo "ℹ️ SUPABASE_ANON_KEY is set" || echo "⚠️ SUPABASE_ANON_KEY not set (optional)"
+          echo ""
+          echo "🔑 Checking secrets..."
+          [ -n "${{ secrets.GEMINI_API_KEY }}" ] && echo "✅ GEMINI_API_KEY is set" || echo "❌ GEMINI_API_KEY is missing"
+          [ -n "${{ secrets.SUPABASE_URL }}" ] && echo "ℹ️ SUPABASE_URL is set" || echo "⚠️ SUPABASE_URL not set (optional)"
+          [ -n "${{ secrets.SUPABASE_ANON_KEY }}" ] && echo "ℹ️ SUPABASE_ANON_KEY is set" || echo "⚠️ SUPABASE_ANON_KEY not set (optional)"
 
-    - name: Replace placeholders in index.html
-      env:
-        GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
-        SUPABASE_URL_VAL: ${{ secrets.SUPABASE_URL }}
-        SUPABASE_KEY_VAL: ${{ secrets.SUPABASE_ANON_KEY }}
-      run: |
-        echo "🔧 Injecting secrets into index.html"
+      - name: Replace placeholders in index.html
+        env:
+          GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SUPABASE_URL_VAL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY_VAL: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          echo "🔧 Injecting secrets into index.html"
 
-        if [ -z "$GEMINI_KEY" ]; then
-          echo "❌ ERROR: GEMINI_API_KEY is required but missing!"
-          exit 1
-        fi
+          if [ -z "$GEMINI_KEY" ]; then
+            echo "❌ ERROR: GEMINI_API_KEY is required but missing!"
+            exit 1
+          fi
 
-        # Use Perl for reliable replacement
-        perl -pi -e "s|__GEMINI_API_KEY__|$ENV{GEMINI_KEY}|g" index.html
-        perl -pi -e "s|__SUPABASE_URL__|$ENV{SUPABASE_URL_VAL}|g" index.html
-        perl -pi -e "s|__SUPABASE_ANON_KEY__|$ENV{SUPABASE_KEY_VAL}|g" index.html
+          # Use Perl for reliable replacement
+          perl -pi -e "s|__GEMINI_API_KEY__|$ENV{GEMINI_KEY}|g" index.html
+          perl -pi -e "s|__SUPABASE_URL__|$ENV{SUPABASE_URL_VAL}|g" index.html
+          perl -pi -e "s|__SUPABASE_ANON_KEY__|$ENV{SUPABASE_KEY_VAL}|g" index.html
 
-        echo "🔍 Verifying replacement..."
-        if grep -q "__GEMINI_API_KEY__" index.html; then
-          echo "❌ ERROR: GEMINI_API_KEY placeholder still present"
-          exit 1
-        fi
+          echo "🔍 Verifying replacement..."
+          if grep -q "__GEMINI_API_KEY__" index.html; then
+            echo "❌ ERROR: GEMINI_API_KEY placeholder still present"
+            exit 1
+          fi
 
-        echo "✅ Secrets successfully injected into index.html"
+          echo "✅ Secrets successfully injected into index.html"
 
-    - name: Show index.html preview (snippet)
-      run: |
-        echo "📄 Preview of replaced section:"
-        grep -n "CONFIG" -n index.html | head -n 20
+      - name: Show index.html preview (snippet)
+        run: |
+          echo "📄 Preview of replaced section:"
+          grep -n "CONFIG" index.html | head -n 20
 
-    - name: Setup Pages
-      uses: actions/configure-pages@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
 
-    - name: Upload artifact
-  uses: actions/upload-pages-artifact@v3
-  with:
-    path: ${{ github.workspace }}
-    exclude: |
-      .github/
-      .git/
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ github.workspace }}
+          exclude: |
+            .github/
+            .git/
 
-    - name: Deploy to GitHub Pages
-      id: deployment
-      uses: actions/deploy-pages@v4
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
-    - name: Deployment complete
-      run: |
-        echo "=================================================="
-        echo "🚀 Guto Chatbot deployed successfully!"
-        echo "🌐 URL: ${{ steps.deployment.outputs.page_url }}"
-        echo "=================================================="
-        echo "⏳ Wait 1–2 minutes for CDN cache to update"
-        echo "🔄 Hard refresh: Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac)"
-        echo "=================================================="
+      - name: Deployment complete
+        run: |
+          echo "=================================================="
+          echo "🚀 Guto Chatbot deployed successfully!"
+          echo "🌐 URL: ${{ steps.deployment.outputs.page_url }}"
+          echo "=================================================="
+          echo "⏳ Wait 1–2 minutes for CDN cache to update"
+          echo "🔄 Hard refresh: Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac)"
+          echo "=================================================="
+
 
