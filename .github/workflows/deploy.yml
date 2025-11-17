@@ -26,19 +26,16 @@ jobs:
           echo "📁 Repository root files:"
           ls -la
           echo ""
-
           if [ -n "${{ secrets.GEMINI_API_KEY }}" ]; then
             echo "✅ GEMINI_API_KEY is set"
           else
             echo "❌ GEMINI_API_KEY is missing"
           fi
-
           if [ -n "${{ secrets.SUPABASE_URL }}" ]; then
             echo "ℹ️ SUPABASE_URL is set"
           else
             echo "⚠️ SUPABASE_URL not set (optional)"
           fi
-
           if [ -n "${{ secrets.SUPABASE_ANON_KEY }}" ]; then
             echo "ℹ️ SUPABASE_ANON_KEY is set"
           else
@@ -67,10 +64,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./               # root directory
-          exclude: |
-            .github/
-            .git/
+          path: ./      # upload everything in repo root (index.html + guto.png)
 
       - name: Deploy to GitHub Pages
         id: deploy-to-pages
@@ -85,3 +79,4 @@ jobs:
           echo "⏳ Wait 1–2 minutes for CDN cache to update"
           echo "🔄 Hard refresh: Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac)"
           echo "=================================================="
+
