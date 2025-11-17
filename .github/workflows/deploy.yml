@@ -15,74 +15,31 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deploy-to-pages.outputs.page_url }}
-
+      url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      # --- Checkout code ---
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # --- Debug secrets ---
-      - name: Check secrets
-        run: |
-          echo "📁 Repository root files:"
-          ls -la ${{ github.workspace }}
-          echo ""
-          if [ -n "${{ secrets.GEMINI_API_KEY }}" ]; then
-            echo "✅ GEMINI_API_KEY is set"
-          else
-            echo "❌ GEMINI_API_KEY is missing"
-          fi
-          if [ -n "${{ secrets.SUPABASE_URL }}" ]; then
-            echo "ℹ️ SUPABASE_URL is set"
-          else
-            echo "⚠️ SUPABASE_URL not set (optional)"
-          fi
-          if [ -n "${{ secrets.SUPABASE_ANON_KEY }}" ]; then
-            echo "ℹ️ SUPABASE_ANON_KEY is set"
-          else
-            echo "⚠️ SUPABASE_ANON_KEY not set (optional)"
-          fi
-
-      # --- Inject secrets into index.html ---
+      # Inject secrets into index.html
       - name: Inject secrets
         env:
           GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
           SUPABASE_URL_VAL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY_VAL: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          echo "🔧 Injecting secrets into index.html"
-          if [ -z "$GEMINI_KEY" ]; then
-            echo "❌ GEMINI_API_KEY is required!"
-            exit 1
-          fi
-          perl -pi -e "s|__GEMINI_API_KEY__|$ENV{GEMINI_KEY}|g" ${{ github.workspace }}/index.html
-          perl -pi -e "s|__SUPABASE_URL__|$ENV{SUPABASE_URL_VAL}|g" ${{ github.workspace }}/index.html
-          perl -pi -e "s|__SUPABASE_ANON_KEY__|$ENV{SUPABASE_KEY_VAL}|g" ${{ github.workspace }}/index.html
-          echo "✅ Secrets injected successfully"
+          perl -pi -e "s|__GEMINI_API_KEY__|$ENV{GEMINI_KEY}|g" index.html
+          perl -pi -e "s|__SUPABASE_URL__|$ENV{SUPABASE_URL_VAL}|g" index.html
+          perl -pi -e "s|__SUPABASE_ANON_KEY__|$ENV{SUPABASE_KEY_VAL}|g" index.html
 
-      # --- Setup Pages ---
-      - name: Setup GitHub Pages
-        uses: actions/configure-pages@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
 
-      # --- Upload root files to Pages ---
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ${{ github.workspace }}   # uploads index.html + guto.png
+          path: ${{ github.workspace }}   # include index.html + guto.png
 
-      # --- Deploy to GitHub Pages ---
       - name: Deploy to GitHub Pages
-        id: deploy-to-pages
+        id: deploy
         uses: actions/deploy-pages@v4
 
-      # --- Deployment complete ---
-      - name: Deployment complete
-        run: |
-          echo "=================================================="
-          echo "🚀 Guto Chatbot deployed successfully!"
-          echo "🌐 URL: ${{ steps.deploy-to-pages.outputs.page_url }}"
-          echo "=================================================="
-          echo "⏳ Wait 1–2 minutes for CDN cache to update"
-          echo "🔄 Hard refresh: Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac)"
-          echo "=================================================="
