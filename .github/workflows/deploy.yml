@@ -1,152 +1,97 @@
-name: Deploy to GitHub Pages
+name: Deploy Guto Chatbot
+
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Debug - List files
+    - name: Debug - Check files and secrets
       run: |
-        echo "=== FILES IN REPOSITORY ==="
+        echo "📁 Repository files:"
         ls -la
         echo ""
-        
-    - name: Debug - Check for placeholders
-      run: |
-        echo "=== CHECKING FOR PLACEHOLDERS IN index.html ==="
-        if [ -f "index.html" ]; then
-          echo "✅ index.html exists"
-          grep -n "PLACEHOLDER_GEMINI_KEY" index.html && echo "✅ Found GEMINI placeholder" || echo "❌ GEMINI placeholder NOT found"
-          grep -n "PLACEHOLDER_SUPABASE_URL" index.html && echo "✅ Found SUPABASE_URL placeholder" || echo "❌ SUPABASE_URL placeholder NOT found"
-          grep -n "PLACEHOLDER_SUPABASE_KEY" index.html && echo "✅ Found SUPABASE_KEY placeholder" || echo "❌ SUPABASE_KEY placeholder NOT found"
-        else
-          echo "❌ index.html NOT FOUND!"
-          exit 1
-        fi
-        echo ""
-        
-    - name: Debug - Check secrets
-      run: |
-        echo "=== CHECKING SECRETS ==="
-        echo "GEMINI_API_KEY exists: ${{ secrets.GEMINI_API_KEY != '' && '✅ Yes' || '❌ No' }}"
-        echo "GEMINI_API_KEY length: ${{ secrets.GEMINI_API_KEY != '' && 'Set' || 'Not Set' }}"
-        echo "SUPABASE_URL exists: ${{ secrets.SUPABASE_URL != '' && '✅ Yes' || '❌ No' }}"
-        echo "SUPABASE_ANON_KEY exists: ${{ secrets.SUPABASE_ANON_KEY != '' && '✅ Yes' || '❌ No' }}"
-        echo ""
+        echo "🔑 Secrets status:"
+        [ -n "${{ secrets.GEMINI_API_KEY }}" ] && echo "✅ GEMINI_API_KEY: Set" || echo "❌ GEMINI_API_KEY: NOT SET"
+        [ -n "${{ secrets.SUPABASE_URL }}" ] && echo "✅ SUPABASE_URL: Set" || echo "⚠️  SUPABASE_URL: Not set (optional)"
+        [ -n "${{ secrets.SUPABASE_ANON_KEY }}" ] && echo "✅ SUPABASE_ANON_KEY: Set" || echo "⚠️  SUPABASE_ANON_KEY: Not set (optional)"
         
     - name: Replace placeholders with secrets
       env:
         GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
-        SUPABASE_URL_SECRET: ${{ secrets.SUPABASE_URL }}
-        SUPABASE_KEY_SECRET: ${{ secrets.SUPABASE_ANON_KEY }}
+        SUPABASE_URL_VAL: ${{ secrets.SUPABASE_URL || '__SUPABASE_URL__' }}
+        SUPABASE_KEY_VAL: ${{ secrets.SUPABASE_ANON_KEY || '__SUPABASE_ANON_KEY__' }}
       run: |
-        echo "🔄 Starting placeholder replacement..."
+        echo "🔄 Replacing placeholders..."
         
-        # Verify file exists
-        if [ ! -f "index.html" ]; then
-          echo "❌ ERROR: index.html not found!"
-          exit 1
-        fi
-        
-        # Check if environment variables are set
+        # Verify API key exists
         if [ -z "$GEMINI_KEY" ]; then
-          echo "❌ ERROR: GEMINI_KEY is empty - check your GitHub Secret 'GEMINI_API_KEY'"
+          echo "❌ CRITICAL ERROR: GEMINI_API_KEY secret is empty!"
+          echo "Go to: Settings → Secrets and variables → Actions → Repository secrets"
           exit 1
-        else
-          echo "✅ GEMINI_KEY is set (length: ${#GEMINI_KEY})"
         fi
         
-        if [ -z "$SUPABASE_URL_SECRET" ]; then
-          echo "⚠️  WARNING: SUPABASE_URL_SECRET is empty"
-          SUPABASE_URL_SECRET="PLACEHOLDER_SUPABASE_URL"
-        else
-          echo "✅ SUPABASE_URL_SECRET is set"
-        fi
-        
-        if [ -z "$SUPABASE_KEY_SECRET" ]; then
-          echo "⚠️  WARNING: SUPABASE_KEY_SECRET is empty"
-          SUPABASE_KEY_SECRET="PLACEHOLDER_SUPABASE_KEY"
-        else
-          echo "✅ SUPABASE_KEY_SECRET is set"
-        fi
+        echo "✅ GEMINI_API_KEY is set (length: ${#GEMINI_KEY})"
         
         # Create backup
         cp index.html index.html.backup
         
-        # Add cache-busting comment with timestamp
-        TIMESTAMP=$(date +%s)
-        sed -i "s|</head>|<!-- Deploy: $TIMESTAMP --></head>|" index.html
+        # Replace using sed with | delimiter to avoid issues with URLs
+        sed -i "s|__GEMINI_API_KEY__|${GEMINI_KEY}|g" index.html
+        sed -i "s|__SUPABASE_URL__|${SUPABASE_URL_VAL}|g" index.html
+        sed -i "s|__SUPABASE_ANON_KEY__|${SUPABASE_KEY_VAL}|g" index.html
         
-        # Replace placeholders using sed with different delimiter to avoid issues
-        echo "Replacing GEMINI_API_KEY..."
-        sed -i "s|PLACEHOLDER_GEMINI_KEY|${GEMINI_KEY}|g" index.html
-        
-        echo "Replacing SUPABASE_URL..."
-        sed -i "s|PLACEHOLDER_SUPABASE_URL|${SUPABASE_URL_SECRET}|g" index.html
-        
-        echo "Replacing SUPABASE_ANON_KEY..."
-        sed -i "s|PLACEHOLDER_SUPABASE_KEY|${SUPABASE_KEY_SECRET}|g" index.html
-        
-        echo "✅ Replacement commands executed"
-        echo ""
+        echo "✅ Replacement completed"
         
     - name: Verify replacement
       run: |
-        echo "=== VERIFYING REPLACEMENT ==="
+        echo "🔍 Verifying replacements..."
         
-        # Check if any placeholders remain
-        if grep -q "PLACEHOLDER_GEMINI_KEY" index.html; then
-          echo "❌ ERROR: PLACEHOLDER_GEMINI_KEY still exists in index.html"
-          echo "Showing context:"
-          grep -n "PLACEHOLDER_GEMINI_KEY" index.html
+        if grep -q "__GEMINI_API_KEY__" index.html; then
+          echo "❌ ERROR: GEMINI_API_KEY placeholder still exists!"
+          echo "Showing CONFIG section:"
+          grep -A 3 "GEMINI_API_KEY:" index.html | head -5
           exit 1
-        else
-          echo "✅ GEMINI_API_KEY successfully replaced"
         fi
         
-        if grep -q "PLACEHOLDER_SUPABASE_URL" index.html; then
-          echo "⚠️  WARNING: PLACEHOLDER_SUPABASE_URL still exists (this is OK if not using Supabase)"
-        else
-          echo "✅ SUPABASE_URL successfully replaced"
-        fi
+        echo "✅ GEMINI_API_KEY successfully replaced"
+        echo "Preview (first 25 chars): $(grep "GEMINI_API_KEY:" index.html | grep -o "'[^']*'" | head -1 | cut -c 1-25)..."
         
-        if grep -q "PLACEHOLDER_SUPABASE_KEY" index.html; then
-          echo "⚠️  WARNING: PLACEHOLDER_SUPABASE_KEY still exists (this is OK if not using Supabase)"
-        else
-          echo "✅ SUPABASE_ANON_KEY successfully replaced"
-        fi
-        
-        # Show a snippet of the config section (without revealing full keys)
-        echo ""
-        echo "=== CONFIG SECTION (first 50 chars of each value) ==="
-        grep -A 5 "const CONFIG" index.html | head -10
-        echo ""
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+      
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: '.'
         
     - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: .
-        force_orphan: true
-        
-    - name: Deployment Summary
+      id: deployment
+      uses: actions/deploy-pages@v4
+      
+    - name: Deployment complete
       run: |
         echo "================================================"
-        echo "🚀 DEPLOYMENT COMPLETED SUCCESSFULLY!"
+        echo "🚀 DEPLOYMENT SUCCESSFUL!"
         echo "================================================"
-        echo "Your chatbot should be live at:"
-        echo "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+        echo "🌐 Your chatbot is live at:"
+        echo "${{ steps.deployment.outputs.page_url }}"
         echo ""
-        echo "If you see 'API Configuration Required' error:"
-        echo "1. Check the Actions logs above for any errors"
-        echo "2. Verify your GitHub Secret 'GEMINI_API_KEY' is set correctly"
-        echo "3. Wait 2-3 minutes for GitHub Pages to update"
-        echo "4. Clear your browser cache and refresh"
+        echo "⏱️  Wait 1-2 minutes, then visit your site"
+        echo "🔄 Hard refresh: Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac)"
         echo "================================================"
