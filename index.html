@@ -460,7 +460,8 @@
 <body>
     <div class="chat-container">
         <div class="chat-header">
-            <div class="bot-avatar">🌿</div>
+            <div class="bot-avatar"><img src="guto.png" alt="Guto" style="width:100%; height:100%; object-fit:cover;">
+</div>
             <div class="bot-info">
                 <div class="bot-name">Guto</div>
                 <div class="bot-status">
@@ -529,8 +530,10 @@ function addMessageToUI(text, sender) {
     wrapper.className = "message " + sender;
 
     wrapper.innerHTML = `
-        <div class="message-avatar">${sender === "bot" ? "🌿" : "👤"}</div>
-        <div class="message-content">${text}</div>
+        <div class="message-avatar">${sender === "bot" ? '<img src="guto.png" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">'
+        : '👤'
+    }
+</div>
     `;
 
     chatMessages.appendChild(wrapper);
