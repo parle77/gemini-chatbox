@@ -530,10 +530,17 @@ function addMessageToUI(text, sender) {
     wrapper.className = "message " + sender;
 
     wrapper.innerHTML = `
-        <div class="message-avatar">${sender === "bot" ? '<img src="guto.png" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">'
-        : '👤'
-    }
-</div>
+        <div class="message-avatar">
+            ${
+                sender === "bot"
+                    ? '<img src="guto.png" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">'
+                    : '👤'
+            }
+        </div>
+
+        <div class="message-content">${text}</div>
+
+        <div class="message-time">${new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</div>
     `;
 
     chatMessages.appendChild(wrapper);
