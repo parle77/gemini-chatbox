@@ -521,19 +521,22 @@
     <script>
 const CONFIG = {
     GEMINI_EDGE_URL: "https://nvnopwfkbkslvrvvvjij.supabase.co/functions/v1/gemini_chatbox",
-    DEFAULT_SYSTEM_PROMPT: "You are Guto, a specialized gut health assistant. Be friendly and helpful."
+    DEFAULT_SYSTEM_PROMPT: "You are Guto, a specialized gut health assistant. Be friendly and helpful. Always guide users gently and remind them to consult professionals when needed."
 };
 
+// Generate anonymous user ID and session ID
 let userId = localStorage.getItem("anonymous_userId") || generateAnonymousId();
 let sessionId = "session_" + Date.now();
 let chatHistory = [];
 
+// Generate a persistent anonymous user ID
 function generateAnonymousId() {
     const id = "anon_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
     localStorage.setItem("anonymous_userId", id);
     return id;
 }
 
+// Add a message to the chat UI
 function addMessageToUI(text, sender) {
     const chatMessages = document.getElementById("chatMessages");
 
@@ -550,10 +553,12 @@ function addMessageToUI(text, sender) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
+// Show/hide typing indicator
 function toggleTyping(show) {
     document.getElementById("typingIndicator").classList.toggle("active", show);
 }
 
+// Send message handler
 async function sendMessage() {
     const input = document.getElementById("chatInput");
     const message = input.value.trim();
@@ -561,10 +566,18 @@ async function sendMessage() {
 
     addMessageToUI(message, "user");
     input.value = "";
-
     toggleTyping(true);
 
     try {
+        // Add system prompt if first message
+        if (chatHistory.length === 0) {
+            chatHistory.push({
+                role: "system",
+                parts: [{ text: CONFIG.DEFAULT_SYSTEM_PROMPT }]
+            });
+        }
+
+        // Send request to Edge Function
         const response = await fetch(CONFIG.GEMINI_EDGE_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -582,8 +595,9 @@ async function sendMessage() {
             addMessageToUI("⚠️ Error: " + data.error, "bot");
         } else {
             chatHistory = data.chatHistory || [];
-            const botMsg = chatHistory[chatHistory.length - 1].parts[0].text;
-            addMessageToUI(botMsg, "bot");
+            // Safely get the last message from chatHistory
+            const lastMessage = chatHistory?.[chatHistory.length - 1]?.parts?.[0]?.text;
+            if (lastMessage) addMessageToUI(lastMessage, "bot");
         }
     } catch (err) {
         addMessageToUI("⚠️ Failed to connect to AI service.", "bot");
@@ -594,6 +608,7 @@ async function sendMessage() {
     }
 }
 
+// Handle Enter key
 document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("sendBtn").onclick = sendMessage;
     document.getElementById("chatInput").onkeypress = (e) => {
@@ -601,6 +616,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 });
 </script>
+
 
 
 
