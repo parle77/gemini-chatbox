@@ -109,13 +109,6 @@
             overflow: hidden;
         }
 
-        .bot-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 50%;
-        }
-
         .bot-avatar::after {
             content: '';
             position: absolute;
@@ -209,13 +202,7 @@
             justify-content: center;
             flex-shrink: 0;
             box-shadow: 0 4px 12px rgba(34, 97, 55, 0.2);
-            overflow: hidden;
-        }
-
-        .message-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+            font-size: 20px;
         }
 
         .message.user .message-avatar {
@@ -473,9 +460,7 @@
 <body>
     <div class="chat-container">
         <div class="chat-header">
-            <div class="bot-avatar">
-                <img src="./guto.png" alt="Guto">
-            </div>
+            <div class="bot-avatar">🌿</div>
             <div class="bot-info">
                 <div class="bot-name">Guto</div>
                 <div class="bot-status">
@@ -519,32 +504,63 @@
     </div>
 
     <script>
+// Configuration - NO KEYS stored here!
 const CONFIG = {
-    GEMINI_EDGE_URL: "https://nvnopwfkbkslvrvvvjij.supabase.co/functions/v1/gemini_chatbox",
-    DEFAULT_SYSTEM_PROMPT: "You are Guto, a specialized gut health assistant. Be friendly and helpful. Always guide users gently and remind them to consult professionals when needed."
+    EDGE_FUNCTION_URL: "https://nvnopwfkbkslvrvvvjij.supabase.co/functions/v1/gemini_chatbox",
+    SUPABASE_ANON_KEY: null, // Will be fetched from edge function
+    SUPABASE_URL: null
 };
 
-// Generate anonymous user ID and session ID
+// State
 let userId = localStorage.getItem("anonymous_userId") || generateAnonymousId();
 let sessionId = "session_" + Date.now();
 let chatHistory = [];
 
-// Generate a persistent anonymous user ID
+// Generate persistent anonymous user ID
 function generateAnonymousId() {
     const id = "anon_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
     localStorage.setItem("anonymous_userId", id);
     return id;
 }
 
-// Add a message to the chat UI
+// Fetch credentials from Edge Function on page load
+async function initializeApp() {
+    try {
+        const response = await fetch(CONFIG.EDGE_FUNCTION_URL, {
+            method: "GET"
+        });
+        
+        if (!response.ok) {
+            throw new Error("Failed to fetch credentials");
+        }
+        
+        const data = await response.json();
+        CONFIG.SUPABASE_ANON_KEY = data.anonKey;
+        CONFIG.SUPABASE_URL = data.supabaseUrl;
+        
+        console.log("✅ App initialized successfully");
+    } catch (err) {
+        console.error("❌ Failed to initialize:", err);
+        showError("Failed to connect to server. Please refresh the page.");
+    }
+}
+
+// Show error message
+function showError(message) {
+    const errorEl = document.getElementById("errorMessage");
+    errorEl.textContent = message;
+    errorEl.classList.add("active");
+    setTimeout(() => errorEl.classList.remove("active"), 5000);
+}
+
+// Add message to UI
 function addMessageToUI(text, sender) {
     const chatMessages = document.getElementById("chatMessages");
-
     const wrapper = document.createElement("div");
     wrapper.className = "message " + sender;
 
     wrapper.innerHTML = `
-        <div class="message-avatar">${sender === "bot" ? "<img src='./guto.png'/>" : "👤"}</div>
+        <div class="message-avatar">${sender === "bot" ? "🌿" : "👤"}</div>
         <div class="message-content">${text}</div>
         <div class='message-time'>${new Date().toLocaleTimeString()}</div>
     `;
@@ -558,29 +574,30 @@ function toggleTyping(show) {
     document.getElementById("typingIndicator").classList.toggle("active", show);
 }
 
-// Send message handler
+// Send message
 async function sendMessage() {
     const input = document.getElementById("chatInput");
     const message = input.value.trim();
     if (!message) return;
+
+    // Check if app is initialized
+    if (!CONFIG.SUPABASE_ANON_KEY) {
+        showError("Still connecting to server. Please wait...");
+        return;
+    }
 
     addMessageToUI(message, "user");
     input.value = "";
     toggleTyping(true);
 
     try {
-        // Add system prompt if first message
-        if (chatHistory.length === 0) {
-            chatHistory.push({
-                role: "system",
-                parts: [{ text: CONFIG.DEFAULT_SYSTEM_PROMPT }]
-            });
-        }
-
-        // Send request to Edge Function
-        const response = await fetch(CONFIG.GEMINI_EDGE_URL, {
+        const response = await fetch(CONFIG.EDGE_FUNCTION_URL, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+                "Content-Type": "application/json",
+                "apikey": CONFIG.SUPABASE_ANON_KEY,
+                "Authorization": `Bearer ${CONFIG.SUPABASE_ANON_KEY}`
+            },
             body: JSON.stringify({
                 userId,
                 sessionId,
@@ -595,7 +612,6 @@ async function sendMessage() {
             addMessageToUI("⚠️ Error: " + data.error, "bot");
         } else {
             chatHistory = data.chatHistory || [];
-            // Safely get the last message from chatHistory
             const lastMessage = chatHistory?.[chatHistory.length - 1]?.parts?.[0]?.text;
             if (lastMessage) addMessageToUI(lastMessage, "bot");
         }
@@ -608,17 +624,15 @@ async function sendMessage() {
     }
 }
 
-// Handle Enter key
-document.addEventListener("DOMContentLoaded", () => {
+// Event listeners
+document.addEventListener("DOMContentLoaded", async () => {
+    await initializeApp(); // Fetch keys on load
+    
     document.getElementById("sendBtn").onclick = sendMessage;
     document.getElementById("chatInput").onkeypress = (e) => {
         if (e.key === "Enter" && !e.shiftKey) sendMessage();
     };
 });
 </script>
-
-
-
-
 </body>
 </html>
