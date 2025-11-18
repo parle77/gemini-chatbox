@@ -521,22 +521,18 @@
     <script>
 const CONFIG = {
     GEMINI_EDGE_URL: "https://nvnopwfkbkslvrvvvjij.supabase.co/functions/v1/gemini_chatbox",
-    SAVECHAT_EDGE_URL: "https://nvnopwfkbkslvrvvvjij.supabase.co/functions/v1/gemini_saveChat",
-    DEFAULT_SYSTEM_PROMPT:
-        "You are Guto, a specialized gut health assistant. Be friendly and helpful."
+    DEFAULT_SYSTEM_PROMPT: "You are Guto, a specialized gut health assistant. Be friendly and helpful."
 };
 
-let supabaseAccessToken = null; // FlutterFlow will set this
-let userId = null;
+let userId = localStorage.getItem("anonymous_userId") || generateAnonymousId();
 let sessionId = "session_" + Date.now();
-
-window.setSupabaseToken = function(token, uid) {
-    supabaseAccessToken = token;
-    userId = uid;
-    console.log("🔐 Supabase token set");
-};
-
 let chatHistory = [];
+
+function generateAnonymousId() {
+    const id = "anon_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem("anonymous_userId", id);
+    return id;
+}
 
 function addMessageToUI(text, sender) {
     const chatMessages = document.getElementById("chatMessages");
@@ -558,46 +554,7 @@ function toggleTyping(show) {
     document.getElementById("typingIndicator").classList.toggle("active", show);
 }
 
-async function callGeminiAPI(message) {
-    const response = await fetch(CONFIG.GEMINI_EDGE_URL, {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${supabaseAccessToken}`,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ message, chatHistory })
-    });
-
-    const data = await response.json();
-    if (data.error) throw new Error(data.error);
-
-    const botMsg = data.candidates[0].content.parts[0].text;
-    
-    chatHistory.push(
-        { role: "user", parts: [{ text: message }] },
-        { role: "model", parts: [{ text: botMsg }] }
-    );
-
-    return botMsg;
-}
-
-async function saveToSupabase(message, sender) {
-    await fetch(CONFIG.SAVECHAT_EDGE_URL, {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${supabaseAccessToken}`,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ userId, sessionId, message, sender })
-    });
-}
-
 async function sendMessage() {
-    if (!supabaseAccessToken) {
-        alert("User not authenticated!");
-        return;
-    }
-
     const input = document.getElementById("chatInput");
     const message = input.value.trim();
     if (!message) return;
@@ -605,27 +562,46 @@ async function sendMessage() {
     addMessageToUI(message, "user");
     input.value = "";
 
-    await saveToSupabase(message, "user");
-
     toggleTyping(true);
+
     try {
-        const botReply = await callGeminiAPI(message);
-        toggleTyping(false);
-        addMessageToUI(botReply, "bot");
-        await saveToSupabase(botReply, "bot");
+        const response = await fetch(CONFIG.GEMINI_EDGE_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                userId,
+                sessionId,
+                message,
+                chatHistory
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+            addMessageToUI("⚠️ Error: " + data.error, "bot");
+        } else {
+            chatHistory = data.chatHistory || [];
+            const botMsg = chatHistory[chatHistory.length - 1].parts[0].text;
+            addMessageToUI(botMsg, "bot");
+        }
     } catch (err) {
+        addMessageToUI("⚠️ Failed to connect to AI service.", "bot");
+        console.error(err);
+    } finally {
         toggleTyping(false);
-        addMessageToUI("⚠️ Error: " + err.message, "bot");
+        input.focus();
     }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("sendBtn").onclick = sendMessage;
     document.getElementById("chatInput").onkeypress = (e) => {
-        if (e.key === "Enter") sendMessage();
+        if (e.key === "Enter" && !e.shiftKey) sendMessage();
     };
 });
 </script>
+
 
 
 </body>
