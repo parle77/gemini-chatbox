@@ -602,9 +602,10 @@ async function sendMessage() {
         if (data.error) {
             addMessageToUI("⚠️ Error: " + data.error, "bot");
         } else {
+            // Update chat history
             chatHistory = data.chatHistory || [];
-            const last = chatHistory.at(-1)?.parts?.[0]?.text;
-            if (last) addMessageToUI(last, "bot");
+            const botText = data.message; // <-- Reliable Gemini output
+            if (botText) addMessageToUI(botText, "bot");
         }
     } catch (err) {
         addMessageToUI("⚠️ Failed to reach the server", "bot");
